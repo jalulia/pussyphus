@@ -65,11 +65,12 @@ export async function init() {
   musicOut.connect(mixer.getMusicBus());
 
   // Rhodes — FM, warm, with chorus + tremolo for city pop shimmer.
-  rhodes = new Tone.FMSynth({
+  rhodes = new Tone.PolySynth(Tone.FMSynth, {
     harmonicity: 2,
     modulationIndex: 3,
     envelope: { attack: 0.01, decay: 0.3, sustain: 0.2, release: 1.2 },
     modulationEnvelope: { attack: 0.02, decay: 0.2, sustain: 0, release: 0.2 },
+    volume: -6,
   });
   const chorus = new Tone.Chorus(2, 2.5, 0.3).start();
   const trem = new Tone.Tremolo(4, 0.2).start();
@@ -111,7 +112,7 @@ export function start() {
     const bassRoot = midiToFreq(bassNotes[0]);
     const bassFifth = midiToFreq(bassNotes[1] ?? bassNotes[0]);
 
-    const jitter = () => (Math.random() - 0.5) * K.MUSIC_HUMANIZE_MS / 1000;
+    const jitter = () => Math.max(0, Math.random() * K.MUSIC_HUMANIZE_MS / 1000);
 
     // Rhodes: staggered voicing, varied velocity
     chord.forEach((f) => {
