@@ -3,6 +3,7 @@
 // ════════════════════════════════════════
 import * as K from '../constants.js';
 import * as cat from './cat.js';
+import * as catTail from './catTail.js';
 import { updateTube, bodyGeo, bellyGeo, tailGeo, tailTipGeo,
          catGroup, catEarL, catEarR, catEarLIn, catEarRIn,
          catMask, catNose, catLegs } from './catModel.js';
@@ -15,6 +16,7 @@ const _tipPts  = [], _tipRad  = [];
 for (let i = 0; i < K.BODY_SPINE_PTS; i++) { _bodyPts.push({x:0,y:0,z:0}); _bodyRad.push(0); }
 for (let i = 0; i < K.TAIL_SEGMENTS;  i++) { _tailPts.push({x:0,y:0,z:0}); _tailRad.push(0); }
 for (let i = 0; i < 4;                i++) { _tipPts.push({x:0,y:0,z:0});  _tipRad.push(0);  }
+const _tailOff = { dx: 0, dy: 0, dz: 0 };
 
 /**
  * Update all cat meshes from current spring chain state.
@@ -53,12 +55,13 @@ export function animate(t, nearestDist, nearestDir) {
     _bodyRad[i] = K.BODY_RADII[i];
   }
 
-  // ═══ Tail spine ═══
+  // ═══ Tail spine — spring chain + state-driven offsets (catTail) ═══
   for (let i = 0; i < K.TAIL_SEGMENTS; i++) {
     const prog = i / (K.TAIL_SEGMENTS - 1);
-    _tailPts[i].x = cat.tailX[i];
-    _tailPts[i].z = cat.tailZ[i];
-    _tailPts[i].y = buttY + 0.01 + i * 0.006 + Math.sin(t * 2.5 + i * 0.4) * 0.003;
+    catTail.offset(prog, t, _tailOff);
+    _tailPts[i].x = cat.tailX[i] + _tailOff.dx;
+    _tailPts[i].z = cat.tailZ[i] + _tailOff.dz;
+    _tailPts[i].y = buttY + 0.01 + i * 0.006 + _tailOff.dy;
     const base = 0.020;
     const taper = 1 - prog * prog;
     _tailRad[i] = base * taper + 0.002;

@@ -11,6 +11,7 @@ import * as npcs from './world/npcs.js';
 import * as cat from './cat/cat.js';
 import * as catModel from './cat/catModel.js';
 import * as catAnim from './cat/catAnim.js';
+import * as catTail from './cat/catTail.js';
 import * as hud from './ui/hud.js';
 import * as titleScreen from './ui/titleScreen.js';
 import * as mixer from './audio/mixer.js';
@@ -50,6 +51,7 @@ function start() {
   alt = 0;
   beltPhase = 0;
   cat.reset();
+  catTail.reset();
   input.reset();
   npcs.reset(sceneSetup.scene);
 }
@@ -105,7 +107,8 @@ function loop(ts) {
     flow = Math.min(K.FLOW_MAX, flow + npcResult.dodged * K.FLOW_DODGE_GAIN);
     if (npcResult.hit > 0) {
       flow = Math.max(0, flow - npcResult.hit * K.FLOW_HIT_LOSS);
-      // Bump cat away from NPC
+      // Tail flicks away from the nearest collider.
+      catTail.impact(-(npcResult.nearestDir || 1));
       // TODO: extract bump direction from NPC collision data
     }
 
@@ -131,6 +134,9 @@ function loop(ts) {
     const backStepY  = escalator.findStepSurface(cat.buttZ);
     cat.updateSpringChain(dt, input.input.lateralTarget, input.input.stepTarget, frontStepY, backStepY);
   }
+
+  // Tail state machine — drives target offsets the spring chain resolves.
+  catTail.update(dt, cat.smoothX);
 
   // Cat animation
   catAnim.animate(t, npcResult.nearestDist, npcResult.nearestDir);

@@ -37,6 +37,19 @@ export const BODY_RADII = [0.003, 0.022, 0.050, 0.042, 0.020, 0.032, 0.040, 0.03
 export const TAIL_SEGMENTS = 12;
 export const TUBE_CROSS_SEGS = 6;      // hexagonal cross-section
 
+// Tail state machine — emotional telemetry
+export const TAIL_MOVING_THRESHOLD = 0.08;
+export const TAIL_STATE_BLEND_S = 0.15;
+export const TAIL_IDLE_SWISH_FREQ = 1.2;
+export const TAIL_IDLE_SWISH_AMP = 0.012;
+export const TAIL_IDLE_TIP_CURL = 0.018;    // Y rise at tip
+export const TAIL_IDLE_BASE_DROP = 0.005;
+export const TAIL_MOVING_SWISH_FREQ = 2.6;
+export const TAIL_MOVING_SWISH_AMP = 0.018;
+export const TAIL_MOVING_PERK_GAIN = 0.014; // Y rise at base
+export const TAIL_IMPACT_IMPULSE = 0.05;    // X displacement magnitude
+export const TAIL_IMPACT_DECAY_S = 0.8;
+
 // Flow state
 export const FLOW_DECAY_RATE = 0.18;
 export const FLOW_MAX = 15;
