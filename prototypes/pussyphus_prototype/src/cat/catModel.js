@@ -109,10 +109,20 @@ export function init(scene) {
   catGroup.add(tailTipMesh);
 
   // ── Ears — seal point, LARGE (Cornish Rex!) ──
-  catEarL = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.04, 4), M.catEar);
-  catEarR = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.04, 4), M.catEar);
-  catEarLIn = new THREE.Mesh(new THREE.ConeGeometry(0.013, 0.028, 4), M.catPointMid);
-  catEarRIn = new THREE.Mesh(new THREE.ConeGeometry(0.013, 0.028, 4), M.catPointMid);
+  // Base on head, taper upward. Origin translated to base so position=base attachment.
+  const EAR_H = 0.04, EAR_H_IN = 0.028;
+  const earGeoL   = new THREE.ConeGeometry(0.022, EAR_H,    4);
+  const earGeoR   = new THREE.ConeGeometry(0.022, EAR_H,    4);
+  const earGeoLIn = new THREE.ConeGeometry(0.013, EAR_H_IN, 4);
+  const earGeoRIn = new THREE.ConeGeometry(0.013, EAR_H_IN, 4);
+  earGeoL.translate(0,   EAR_H/2,    0);
+  earGeoR.translate(0,   EAR_H/2,    0);
+  earGeoLIn.translate(0, EAR_H_IN/2, 0);
+  earGeoRIn.translate(0, EAR_H_IN/2, 0);
+  catEarL   = new THREE.Mesh(earGeoL,   M.catEar);
+  catEarR   = new THREE.Mesh(earGeoR,   M.catEar);
+  catEarLIn = new THREE.Mesh(earGeoLIn, M.catPointMid);
+  catEarRIn = new THREE.Mesh(earGeoRIn, M.catPointMid);
   catGroup.add(catEarL, catEarR, catEarLIn, catEarRIn);
 
   // Face mask — dark seal point overlay

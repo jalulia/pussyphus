@@ -78,15 +78,15 @@ export function animate(t, nearestDist, nearestDir) {
   // ═══ Face ═══
   const headX = cat.headX, headZ = cat.headZ;
 
-  // Ears — proximity-aware
-  const earY = headY + 0.045;
-  catEarL.position.set(headX - 0.035, earY, headZ);
-  catEarR.position.set(headX + 0.035, earY, headZ);
-  catEarLIn.position.set(headX - 0.035, earY - 0.003, headZ);
-  catEarRIn.position.set(headX + 0.035, earY - 0.003, headZ);
+  // Ears — base sits on head, tapers upward; proximity-aware rotation
+  const earY = headY + 0.018;
+  catEarL.position.set(headX - 0.032, earY, headZ);
+  catEarR.position.set(headX + 0.032, earY, headZ);
+  catEarLIn.position.set(headX - 0.032, earY + 0.004, headZ - 0.001);
+  catEarRIn.position.set(headX + 0.032, earY + 0.004, headZ - 0.001);
 
   const earAlert = Math.max(0, 1 - nearestDist / 1.5);
-  const earRotBase = 0.15 + earAlert * 0.3;
+  const earRotBase = 0.04 + earAlert * 0.35;
   catEarL.rotation.z = -(earRotBase + (nearestDir < 0 ? earAlert * 0.3 : 0));
   catEarR.rotation.z =   earRotBase + (nearestDir > 0 ? earAlert * 0.3 : 0);
   catEarL.rotation.x = earAlert * 0.25;
