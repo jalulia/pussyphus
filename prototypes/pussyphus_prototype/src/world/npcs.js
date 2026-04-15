@@ -26,11 +26,15 @@ function buildNPC(type) {
 
   // Legs
   for (const s of [-0.09, 0.09]) {
-    g.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.45, 0.14), pa), { position: new THREE.Vector3(s, 0.22, 0) }));
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.45, 0.14), pa);
+    leg.position.set(s, 0.22, 0);
+    g.add(leg);
   }
   // Shoes
   for (const s of [-0.09, 0.09]) {
-    g.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.2), sho), { position: new THREE.Vector3(s, 0.02, 0.03) }));
+    const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.2), sho);
+    shoe.position.set(s, 0.02, 0.03);
+    g.add(shoe);
   }
   // Torso
   const torso = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.45, 0.22), sh);
