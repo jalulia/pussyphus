@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>PUSSYPHUS — Character Study</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=VT323&family=Silkscreen:wght@400;700&family=DM+Mono:wght@300;400;500&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#1a1a3e;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:'DM Mono',monospace}
+  #frame{background:#c0b8b0;border:3px outset #c8c0b8;padding:2px;box-shadow:2px 2px 8px rgba(0,0,0,.5)}
+  #tbar{background:linear-gradient(90deg,#1a1a4e,#2a6a7e 50%,#1a3a5e);padding:2px 6px;display:flex;justify-content:space-between;font-family:'Silkscreen',monospace;font-size:9px;color:#e8e0d8;letter-spacing:1px}
+  #cvs{border:2px inset #a09888;display:block;image-rendering:pixelated;image-rendering:crisp-edges}
+  #ctrl{padding:5px 6px;display:flex;gap:4px;flex-wrap:wrap}
+  #ctrl button{background:#d8d0c4;border:2px outset #d8d0c8;padding:2px 10px;font-family:'VT323',monospace;font-size:14px;cursor:pointer;color:#1a1a2e}
+  #ctrl button:active{border-style:inset}
+  #ctrl button.on{background:#48a8a0;color:white;border-style:inset}
+  #info{padding:2px 6px;font-family:'VT323',monospace;font-size:13px;color:#a89888;border-top:1px solid #a89888}
+</style>
+</head>
+<body>
+<div id="frame">
+  <div id="tbar"><span>pussyphus_ballz.exe</span><span>v0.4</span></div>
+  <canvas id="cvs" width="600" height="480"></canvas>
+  <div id="ctrl">
+    <button class="on" onclick="S('idle',this)">IDLE</button>
+    <button onclick="S('walk',this)">WALK</button>
+    <button onclick="S('trot',this)">TROT</button>
+    <button onclick="S('alert',this)">ALERT</button>
+    <button onclick="S('flow',this)">FLOW</button>
+    <button onclick="S('stumble',this)">STUMBLE</button>
+    <button onclick="S('loaf',this)">LOAF</button>
+    <button onclick="S('stretch',this)">STRETCH</button>
+    <span style="flex:1"></span>
+    <button onclick="toggleBallz(this)">SHOW BALLZ</button>
+  </div>
+  <div id="info">state: idle · Cornish Rex · ballz+linez renderer v0.4</div>
+</div>
+<script>
+const C=document.getElementById('cvs'),W=600,H=480;
+const mainX=C.getContext('2d');
+// Half-res offscreen canvas — everything renders here first
+const halfW=W/2,halfH=H/2;
+const offC=document.createElement('canvas');offC.width=halfW;offC.height=halfH;
+const X=offC.getContext('2d');
+
+// Bayer 4x4 dither matrix (normalized 0-1)
+const BAYER=[
+  0/16, 8/16, 2/16,10/16,
+  12/16, 4/16,14/16, 6/16,
+  3/16,11/16, 1/16, 9/16,
+  15/16, 7/16,13/16, 5/16
+];
+// Reduced palette for dithering — warm muted tones matching game
+const DPAL=[
+  [20,16,24],[40,28,38],[52,40,48],[64,52,56],
+  [80,68,72],[100,88,88],[120,108,104],[140,128,116],
+  [160,148,132],[180,168,152],[196,184,168],[210,200,184],
+  [224,216,200],[180,192,200],[160,176,192],[140,160,180],
+  [160,208,48],[80,100,40],[200,96,96],[184,160,104]
+];
+function dither(){
+  const img=X.getImageData(0,0,halfW,halfH);
+  const d=img.data;
+  for(let y=0;y<halfH;y++){
+    for(let x=0;x<halfW;x++){
+      const i=(y*halfW+x)*4;
+      const r=d[i],g=d[i+1],b=d[i+2];
+      const bv=(BAYER[(y%4)*4+(x%4)]-0.5)*32;
+      const tr=r+bv,tg=g+bv,tb=b+bv;
+      // Find nearest palette color
+      let best=0,bestD=999999;
+      for(let p=0;p<DPAL.length;p++){
+        const dr=tr-DPAL[p][0],dg=tg-DPAL[p][1],db=tb-DPAL[p][2];
+        const dist=dr*dr+dg*dg+db*db;
+        if(dist<bestD){bestD=dist;best=p;}
+      }
+      d[i]=DPAL[best][0];d[i+1]=DPAL[best][1];d[i+2]=DPAL[best][2];
+    }
+  }
+  X.putImageData(img,0,0);
+}
+const PAL={
+  // Cat — dark warm, reads through dither
+  body:'#402838',        // main body: warm dark plum
+  bodyLight:'#584850',   // lighter body areas
+  point:'#1a1018',       // darkest points: ears, paw tips, tail end
+  pointMid:'#2a1820',    // medium dark: face mask, mid-tail
+  belly:'#504048',       // underside: slightly lighter
+  eye:'#a0d030',         // bright green-yellow — high contrast
+  pupil:'#080808',
+  nose:'#886068',
+  whisk:'#807070',
+  // World — game palette
+  bg:'#c8c0b4',
+  step:'#b8bcc0',stepEdge:'#a0a4a8',stepSide:'#808488',yellow:'#b8a830'
+};
+let state='idle',stateT=0,showBallz=false,t=0;
+function S(s,btn){state=s;stateT=0;document.querySelectorAll('#ctrl button').forEach(b=>b.classList.remove('on'));if(btn)btn.classList.add('on');document.getElementById('info').textContent='state: '+s+' · Cornish Rex · ballz+linez renderer v0.4';}
+function toggleBallz(btn){showBallz=!showBallz;btn.textContent=showBallz?'HIDE BALLZ':'SHOW BALLZ';}
+
+// ═══ DRAWING ═══
+function ball(x,y,r,col){X.beginPath();X.arc(x,y,r,0,Math.PI*2);X.fillStyle=col;X.fill();}
+function linez(x1,y1,r1,x2,y2,r2,col){
+  const dx=x2-x1,dy=y2-y1,d=Math.sqrt(dx*dx+dy*dy);if(d<1)return;
+  const nx=-dy/d*0.8,ny=dx/d*0.8;
+  X.beginPath();
+  X.moveTo(x1+nx*r1,y1+ny*r1);X.lineTo(x2+nx*r2,y2+ny*r2);
+  X.lineTo(x2-nx*r2,y2-ny*r2);X.lineTo(x1-nx*r1,y1-ny*r1);
+  X.closePath();X.fillStyle=col;X.fill();
+}
+
+// ═══ ESCALATOR — pulled back, less dominant ═══
+function drawEscalator(){
+  const bx=160,by=355;
+  for(let i=0;i<5;i++){
+    const x=bx+i*70,y=by-i*32;
+    X.fillStyle=PAL.step;X.beginPath();
+    X.moveTo(x,y);X.lineTo(x+74,y-9);X.lineTo(x+74+46,y-9+14);X.lineTo(x+46,y+14);
+    X.closePath();X.fill();
+    X.fillStyle=PAL.stepSide;X.beginPath();
+    X.moveTo(x,y);X.lineTo(x+46,y+14);X.lineTo(x+46,y+14+20);X.lineTo(x,y+20);
+    X.closePath();X.fill();
+    X.fillStyle=PAL.yellow;X.fillRect(x+1,y+1,2,16);
+  }
+}
+
+// ═══ TAIL STATE ═══
+let tailX=new Float32Array(6),tailY=new Float32Array(6);
+
+function drawCat(anchorX,anchorY){
+  const dt=1/60;stateT+=dt;t+=dt;
+  const breathe=Math.sin(t*1.8)*1.5;
+
+  // ═══ STATE ═══
+  let bob=0,sway=0,hTilt=0,stretch=1,legCyc=0;
+  let tailWag=3,tailLift=20,earPerk=0,earBack=0,drop=0;
+
+  if(state==='walk'){legCyc=t*4.5;bob=Math.sin(t*4.5)*2;sway=Math.sin(t*4.5)*2;tailLift=24;tailWag=4;}
+  if(state==='trot'){legCyc=t*7;bob=Math.abs(Math.sin(t*7))*3;sway=Math.sin(t*7)*1.5;tailLift=28;tailWag=6;}
+  if(state==='alert'){earPerk=6;hTilt=-4;tailWag=1.5;tailLift=26;}
+  if(state==='flow'){legCyc=t*3;bob=Math.sin(t*3)*1.2;tailWag=5;tailLift=32;earPerk=3;stretch=1.04;}
+  if(state==='stumble'){const s=Math.min(stateT,0.4)/0.4;bob=-6*(1-s);hTilt=5*(1-s);earBack=8*(1-s);stretch=0.95;tailLift=6;tailWag=1;}
+  if(state==='loaf'){drop=14;stretch=0.82;tailWag=1.5;tailLift=8;earBack=2;}
+  if(state==='stretch'){stretch=1.12;hTilt=-6;tailLift=35;tailWag=2.5;earPerk=4;drop=-4;}
+
+  const isWalk=state==='walk'||state==='trot'||state==='flow';
+  const ground=anchorY+58; // ground plane
+
+  // ════════════════════════════════════════════
+  // SKELETON — designed as a feline silhouette
+  // Cat faces RIGHT. Anchor = chest center.
+  // ════════════════════════════════════════════
+
+  // CHEST — primary body mass
+  const chX=anchorX,chY=anchorY+bob+breathe+drop+2,chR=28;
+
+  // SHOULDER HUMP — smooths top line
+  const shmpX=chX-6,shmpY=chY-16,shmpR=19;
+
+  // BACK — intermediate mass
+  const bkX=chX-44*stretch+sway*0.4,bkY=chY-3+bob*0.5,bkR=20;
+
+  // RUMP — bridges back to hips, makes hindquarters intentional
+  const rmpX=bkX-22*stretch,rmpY=bkY+1,rmpR=17;
+
+  // HIPS — tighter, integrated with rump
+  const hiX=rmpX-18*stretch+sway*0.3,hiY=rmpY+3+bob*0.2,hiR=16;
+
+  // BELLY SAG
+  const beX=(chX+hiX)/2-5,beY=chY+14+drop*0.5,beR=15;
+
+  // NECK — more decisive forward thrust
+  const nkX=chX+32,nkY=chY-22+bob*0.6,nkR=14;
+
+  // HEAD — reduced lollipop, more wedge
+  const hdX=nkX+22,hdY=nkY-12+hTilt+bob*0.7,hdR=24;
+
+  // FOREHEAD
+  const fhX=hdX-5,fhY=hdY-7,fhR=15;
+
+  // CHEEK/JAW — larger, more angular, defines the Cornish Rex wedge
+  const jawX=hdX+16,jawY=hdY+6,jawR=14;
+
+  // CHIN — tiny ball that gives the profile a point
+  const chinX=jawX+6,chinY=jawY+8,chinR=5;
+
+  // NOSE BRIDGE
+  const noseX=hdX+27,noseY=hdY+2,noseR=5;
+
+  // ═══ LEGS — weight-bearing stance ═══
+  const lw=isWalk?Math.sin(legCyc)*8:0;
+  // Front legs: slight forward angle, feet planted
+  const fLegTopX=chX+4,fLegTopY=chY+16;
+  const fPawNX=fLegTopX+6+lw, fPawNY=ground;
+  const fPawFX=fLegTopX+10-lw,fPawFY=ground-2; // far foot slightly higher (depth)
+
+  // Back legs: angled back, hock visible
+  const bLegTopX=hiX+4,bLegTopY=hiY+8;
+  const bKneeNX=bLegTopX-4-lw*0.5,bKneeNY=bLegTopY+16;
+  const bPawNX=bKneeNX+6-lw,bPawNY=ground;
+  const bKneeFX=bLegTopX+2+lw*0.5,bKneeFY=bLegTopY+14;
+  const bPawFX=bKneeFX+4+lw,bPawFY=ground-2;
+
+  // ═══ TAIL — raised, broken rhythm, thicker base ═══
+  let ptx=hiX-4,pty=hiY-8;
+  const tailSeg=[14,16,18,20,22,24]; // spacing increases toward tip — breaks even rhythm
+  for(let i=0;i<6;i++){
+    const p=i/5;
+    const tgtX=ptx-3-p*6+Math.sin(t*2.2+i*0.8)*tailWag*p*p;
+    const tgtY=pty-tailLift*(0.25+p*0.14)+p*p*7;
+    const sp=(6-i*0.5)*0.13;
+    tailX[i]+=(tgtX-tailX[i])*sp;
+    tailY[i]+=(tgtY-tailY[i])*sp;
+    ptx=tailX[i];pty=tailY[i];
+  }
+  const tR=[12,9,7,5,3,2]; // thick root, fast taper — less beaded
+
+  // ═══ EARS ═══
+  const earBaseY2=hdY-hdR+8;
+  // Near ear
+  const enBX=hdX-10,enBY=earBaseY2,enTX=hdX-16,enTY=earBaseY2-20-earPerk+earBack;
+  // Far ear
+  const efBX=hdX+2,efBY=earBaseY2+2,efTX=hdX,efTY=earBaseY2-18-earPerk+earBack;
+
+  // idle ear micro-motion
+  const earTwitch=Math.sin(t*1.3)*1.5;
+  const earTwitch2=Math.sin(t*1.7+1)*1.5;
+
+  // ════════════════════════════════════════
+  // RENDER — strict back-to-front order
+  // ════════════════════════════════════════
+
+  // ── FAR BACK LEG ──
+  linez(bLegTopX,bLegTopY,9,bKneeFX,bKneeFY,7,PAL.body);
+  linez(bKneeFX,bKneeFY,7,bPawFX,bPawFY,8,PAL.body);
+  ball(bKneeFX,bKneeFY,7,PAL.body);
+  // Paw: wider contact patch
+  ball(bPawFX,bPawFY,7,PAL.point);
+  ball(bPawFX,bPawFY+3,5,'rgba(20,15,15,0.2)'); // ground shadow
+
+  // ── FAR FRONT LEG ──
+  linez(fLegTopX+5,fLegTopY-2,9,fPawFX,fPawFY,8,PAL.body);
+  ball(fPawFX,fPawFY,7,PAL.point);
+  ball(fPawFX,fPawFY+3,5,'rgba(20,15,15,0.2)');
+
+  // ── TAIL ──
+  linez(hiX-2,hiY-5,hiR*0.5,tailX[0],tailY[0],tR[0],PAL.pointMid);
+  for(let i=0;i<5;i++){
+    const c=i>=3?PAL.point:PAL.pointMid;
+    linez(tailX[i],tailY[i],tR[i],tailX[i+1],tailY[i+1],tR[i+1],c);
+  }
+  for(let i=5;i>=0;i--) ball(tailX[i],tailY[i],tR[i],i>=4?PAL.point:PAL.pointMid);
+
+  // ── HIPS ──
+  ball(hiX,hiY,hiR,PAL.body);
+
+  // ── RUMP — bridges back to hips ──
+  linez(hiX,hiY,hiR,rmpX,rmpY,rmpR,PAL.body);
+  ball(rmpX,rmpY,rmpR,PAL.body);
+
+  // ── BACK ──
+  linez(rmpX,rmpY,rmpR,bkX,bkY,bkR,PAL.body);
+  ball(bkX,bkY,bkR,PAL.body);
+
+  // ── BELLY ──
+  linez(bkX,bkY+bkR*0.4,bkR*0.5,beX,beY,beR,PAL.belly);
+  linez(beX,beY,beR,chX-10,chY+chR*0.45,chR*0.45,PAL.belly);
+  ball(beX,beY,beR,PAL.belly);
+
+  // ── CHEST ──
+  linez(bkX,bkY,bkR,chX,chY,chR,PAL.body);
+  ball(chX,chY,chR,PAL.body);
+
+  // ── SHOULDER HUMP ──
+  ball(shmpX,shmpY,shmpR,PAL.body);
+
+  // ── NECK ──
+  linez(chX+14,chY-14,17,nkX,nkY,nkR,PAL.body);
+  ball(nkX,nkY,nkR,PAL.body);
+
+  // ── NEAR BACK LEG ──
+  linez(bLegTopX,bLegTopY,10,bKneeNX,bKneeNY,8,PAL.body);
+  linez(bKneeNX,bKneeNY,8,bPawNX,bPawNY,9,PAL.body);
+  ball(bKneeNX,bKneeNY,8,PAL.body);
+  ball(bPawNX,bPawNY,8,PAL.point);
+  ball(bPawNX,bPawNY+3,6,'rgba(20,15,15,0.2)');
+
+  // ── NEAR FRONT LEG ──
+  linez(fLegTopX,fLegTopY,11,fPawNX,fPawNY,9,PAL.body);
+  ball(fPawNX,fPawNY,9,PAL.point);
+  ball(fPawNX,fPawNY+4,6,'rgba(20,15,15,0.2)');
+
+  // ── FAR EAR ──
+  linez(efBX,efBY,7,efTX,efTY+earTwitch2,4,PAL.point);
+  ball(efBX,efBY,7,PAL.point);
+  ball(efTX,efTY+earTwitch2,4,PAL.point);
+
+  // ── HEAD ──
+  linez(nkX,nkY,nkR,hdX,hdY,hdR*0.5,PAL.body);
+  ball(hdX,hdY,hdR,PAL.body);
+  ball(fhX,fhY,fhR,PAL.body);
+
+  // ── FACE — Cornish Rex wedge, more distinctive ──
+  // Mask: larger, pushed forward, defines the wedge
+  ball(hdX+11,hdY+2,16,PAL.point);
+  // Jaw/cheek: angular, overlaps mask
+  ball(jawX,jawY,jawR,PAL.pointMid);
+  // Chin point
+  ball(chinX,chinY,chinR,PAL.pointMid);
+  // Nose bridge
+  ball(noseX-3,noseY+1,noseR+2,PAL.pointMid);
+
+  // Eye — larger, more attitude. Sits high in the mask.
+  ball(hdX+13,hdY-4,7.5,PAL.eye);
+  ball(hdX+15,hdY-4,3.5,PAL.pupil);
+
+  // Nose tip — more defined
+  ball(noseX+2,noseY+2,4,PAL.nose);
+
+  // ── NEAR EAR ──
+  linez(enBX,enBY,9,enTX,enTY+earTwitch,5.5,PAL.point);
+  ball(enBX,enBY,9,PAL.point);
+  ball(enTX,enTY+earTwitch,5.5,PAL.point);
+  ball(enTX+1,enTY+earTwitch+3,2.5,'#604050');
+
+  // ── WHISKERS — fine, from nose area ──
+  X.strokeStyle=PAL.whisk;X.lineWidth=0.7;
+  for(const[dy,curve] of [[-4,-3],[0,1],[4,4]]){
+    X.beginPath();X.moveTo(noseX,noseY+dy);
+    X.quadraticCurveTo(noseX+18,noseY+dy+curve+Math.sin(t*1.1+dy)*0.8,noseX+34,noseY+dy+curve*2);
+    X.stroke();
+  }
+
+  // ═══ BALLZ DEBUG ═══
+  if(showBallz){
+    X.strokeStyle='rgba(72,168,160,0.45)';X.lineWidth=0.8;
+    X.font='7px monospace';X.fillStyle='rgba(72,168,160,0.6)';
+    const bb=[[hdX,hdY,hdR,'head'],[fhX,fhY,fhR,'fhead'],[jawX,jawY,jawR,'jaw'],
+      [chinX,chinY,chinR,'chin'],
+      [nkX,nkY,nkR,'neck'],[chX,chY,chR,'chest'],[shmpX,shmpY,shmpR,'shmp'],
+      [bkX,bkY,bkR,'back'],[rmpX,rmpY,rmpR,'rump'],[beX,beY,beR,'belly'],[hiX,hiY,hiR,'hips'],
+      [fPawNX,fPawNY,8,'pawFN'],[fPawFX,fPawFY,7,'pawFF'],
+      [bKneeNX,bKneeNY,8,'kneeN'],[bPawNX,bPawNY,8,'pawBN'],
+      [bKneeFX,bKneeFY,7,'kneeF'],[bPawFX,bPawFY,7,'pawBF']];
+    for(const[bx,by,br,lb] of bb){X.beginPath();X.arc(bx,by,br,0,Math.PI*2);X.stroke();X.fillText(lb,bx-8,by-br-2);}
+    for(let i=0;i<6;i++){X.beginPath();X.arc(tailX[i],tailY[i],tR[i],0,Math.PI*2);X.stroke();X.fillText('t'+i,tailX[i]-4,tailY[i]-tR[i]-2);}
+  }
+}
+
+function draw(){
+  // Render to half-res offscreen canvas
+  X.save();
+  X.scale(0.5,0.5); // all coordinates work at original scale
+  X.fillStyle=PAL.bg;X.fillRect(0,0,W,H);
+  drawEscalator();
+  drawCat(310,258);
+  X.restore();
+
+  // Apply Bayer dither
+  dither();
+
+  // Scale up to main canvas — nearest neighbor (pixelated)
+  mainX.imageSmoothingEnabled=false;
+  mainX.drawImage(offC,0,0,W,H);
+
+  requestAnimationFrame(draw);
+}
+draw();
+</script>
+</body>
+</html>

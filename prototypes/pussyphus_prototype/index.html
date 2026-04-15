@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>PUSSYPHUS</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=VT323&family=Silkscreen:wght@400;700&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:#1a1a3e}
+  body{display:flex;flex-direction:column;align-items:center;justify-content:center}
+
+  /* ── Win95 Chrome Frame ── */
+  #frame{border:3px outset #c8c0b8;background:#c0b8b0;padding:2px;box-shadow:2px 2px 8px rgba(0,0,0,.5)}
+  #tbar{background:linear-gradient(90deg,#1a1a4e,#2a6a7e 50%,#1a3a5e);padding:2px 6px;display:flex;justify-content:space-between;align-items:center;user-select:none}
+  #tbar span{color:#e8e0d8;font-family:'Silkscreen',monospace;font-size:10px;letter-spacing:1px}
+  .wb{display:flex;gap:1px}
+  .wb i{display:block;width:14px;height:13px;background:#c0b8b0;border:1px outset #d8d0c8;font-style:normal;font-size:9px;line-height:12px;text-align:center;cursor:default;font-family:monospace;color:#1a1a3e}
+
+  /* ── Game Container ── */
+  #gc{position:relative;width:480px;height:560px;border:2px inset #a09888;overflow:hidden}
+  #gc canvas{display:block;width:100%!important;height:100%!important}
+
+  /* ── HUD Panels ── */
+  #ui{position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:10;font-family:'VT323',monospace}
+  .up{position:absolute;background:rgba(192,184,176,.88);border:2px outset #d8d0c8;padding:3px 6px;font-size:13px;color:#2a2a4e;box-shadow:1px 1px 0 rgba(0,0,0,.2)}
+  .upi{border:1px inset #a09888;background:rgba(220,212,200,.9);padding:1px 5px;margin:1px 0}
+  .up label{font-size:11px;color:#6a6078;text-transform:uppercase;letter-spacing:1px}
+  #ps{top:8px;left:8px}
+  #pf{top:8px;right:8px}
+  #pd{bottom:8px;left:50%;transform:translateX(-50%);white-space:nowrap}
+  .fb{display:flex;gap:1px;margin-top:2px}
+  .fp{width:6px;height:10px;border:1px solid #8a8078;background:#c8c0b4}
+  .fp.a{background:#48a8a0;border-color:#388880}
+  .fp.h{background:#c87090;border-color:#a85070}
+
+  /* ── Title Screen ── */
+  #ts{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20;pointer-events:all;cursor:pointer;background:rgba(216,204,184,.7)}
+  #ts h1{font-family:'Silkscreen',monospace;font-size:30px;color:#1a1a3e;text-shadow:2px 2px 0 rgba(200,160,160,.5);letter-spacing:3px;margin-bottom:4px}
+  #ts .sub{font-family:'VT323',monospace;font-size:18px;color:#6a5868;margin-bottom:6px}
+  #ts .zone{font-family:'VT323',monospace;font-size:13px;color:#48a8a0;margin-bottom:28px;letter-spacing:2px}
+  #ts .pr{font-family:'VT323',monospace;font-size:18px;color:#1a1a3e;animation:bl 1.2s step-end infinite}
+  #ts .ct{font-family:'VT323',monospace;font-size:13px;color:#8a7a70;margin-top:8px}
+  @keyframes bl{50%{opacity:0}}
+  #ts.off{display:none}
+
+  /* ── Status Bar ── */
+  #sb{background:#c0b8b0;padding:1px 4px;display:flex;gap:2px;border-top:1px solid #a09888}
+  #sb div{border:1px inset #a09888;padding:0 6px;font-size:13px;color:#2a2a4e;flex:1;white-space:nowrap;overflow:hidden;font-family:'VT323',monospace}
+</style>
+</head>
+<body>
+
+<div id="frame">
+  <div id="tbar">
+    <span>pussyphus.exe</span>
+    <div class="wb"><i>_</i><i>□</i><i>×</i></div>
+  </div>
+  <div id="gc">
+    <div id="ui">
+      <div class="up" id="ps">
+        <label>STATUS</label>
+        <div class="upi" id="mt">MOOD: INDIFFERENT</div>
+        <div class="upi" id="at">ALT: 0</div>
+      </div>
+      <div class="up" id="pf">
+        <label>FLOW INDEX</label>
+        <div class="fb" id="fbar"></div>
+        <div class="upi" id="ft" style="margin-top:3px">STABLE</div>
+      </div>
+      <div class="up" id="pd">
+        <label>ZONE: KIOSK CANYON</label>
+        <div class="upi" id="dt">YOU ARE HERE</div>
+      </div>
+    </div>
+    <div id="ts">
+      <h1>PUSSYPHUS</h1>
+      <div class="sub">an escalator for one</div>
+      <div class="zone">ZONE 01: KIOSK CANYON</div>
+      <div class="pr">[ click to ascend ]</div>
+      <div class="ct">← → move · ↑ ↓ scroll step · mouse</div>
+    </div>
+  </div>
+  <div id="sb">
+    <div id="sb1">scent index: nominal</div>
+    <div id="sb2">social density: low</div>
+    <div id="sb3">☆</div>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.min.js",
+    "tone": "https://cdn.jsdelivr.net/npm/tone@14.8.49/+esm"
+  }
+}
+</script>
+<script type="module" src="src/main.js"></script>
+
+</body>
+</html>

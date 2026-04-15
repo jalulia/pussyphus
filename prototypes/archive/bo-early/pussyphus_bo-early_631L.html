@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bo</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    overflow: hidden;
+    background: linear-gradient(180deg, #DDD5C8 0%, #D0C8B8 55%, #C4BCA8 100%);
+    cursor: none;
+    font-family: 'Georgia', serif;
+  }
+  canvas { display: block; }
+  #cursor {
+    position: fixed; pointer-events: none; z-index: 999;
+    width: 28px; height: 28px;
+    transform: translate(-50%, -50%);
+    opacity: 0.0; transition: opacity 0.4s;
+  }
+  #cursor.visible { opacity: 0.7; }
+  #cursor svg { width: 100%; height: 100%; }
+  #name {
+    position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
+    color: #7B6B55; font-size: 15px; letter-spacing: 6px;
+    text-transform: uppercase; opacity: 0.35; user-select: none;
+  }
+  #info {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    color: #9B8B75; font-size: 12px; text-align: center;
+    opacity: 0; user-select: none;
+    transition: opacity 1.5s; letter-spacing: 0.5px;
+  }
+  #info.show { opacity: 0.55; }
+  #mood {
+    position: fixed; top: 24px; right: 28px;
+    color: #9B8B75; font-size: 11px; letter-spacing: 1px;
+    opacity: 0.3; user-select: none;
+  }
+</style>
+</head>
+<body>
+<div id="name">Bo</div>
+<div id="mood"></div>
+<div id="info">move your mouse to say hello &middot; click to pet</div>
+<div id="cursor"><svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="12" fill="none" stroke="#7B6B55" stroke-width="1.5" opacity="0.6"/><circle cx="14" cy="14" r="3" fill="#7B6B55" opacity="0.4"/></svg></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ================================================================
+//  Bo — A PF Magic Petz-inspired ball-and-line procedural Siamese
+//
+//  Architecture mirrors the original "Ballz" engine:
+//    - Overlapping spheres (ballz) define skeletal volume
+//    - Tapered trapezoid connectors (linez) bridge them
+//    - Paintball-style coloring: cream body + seal-brown points
+//    - Layered concurrent animation: breathing, gaze, tail, walk
+//    - Constrained randomness for organic feel
+//
+//  All node names match Petz community conventions where possible.
+// ================================================================
+
+// ─── PALETTE (chalky, matte, matter-of-fact) ────────────────────
+const CREAM      = 0xE2CEAA;
+const CREAM_DARK = 0xCBB894;
+const SEAL       = 0x352318;
+const SEAL_LIGHT = 0x4D3828;
+const BLUE_EYE   = 0x5090B8;
+const PUPIL      = 0x0C0C14;
+const PINK       = 0xB87870;
+
+// ─── THREE.JS SCENE ─────────────────────────────────────────────
+const scene    = new THREE.Scene();
+const frustum  = 240;
+let aspect     = window.innerWidth / window.innerHeight;
+
+const camera = new THREE.OrthographicCamera(
+  -frustum * aspect / 2, frustum * aspect / 2,
+  frustum / 2, -frustum / 2 + 30, -200, 200
+);
+camera.position.set(0, 0, 100);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+document.body.appendChild(renderer.domElement);
+
+// Flat, even lighting — no rim, no drama
+scene.add(new THREE.AmbientLight(0xFFF8EE, 0.72));
+const sun = new THREE.DirectionalLight(0xFFFFFF, 0.30);
+sun.position.set(-30, 80, 60);
+scene.add(sun);
+
+// ─── CAT GROUP (local origin = between hips & chest) ────────────
+const catGroup = new THREE.Group();
+catGroup.position.set(0, -25, 0);
+scene.add(catGroup);
+
+// ─── SKELETON BLUEPRINT ─────────────────────────────────────────
+//  [name, restX, restY, restZ, radius, color]
+//  Cat faces LEFT (negative X). Z handles near/far layering.
+const BLUEPRINT = [
+  // ── Core body (slim — not marshmallow) ──
+  ['hips',       38,  58,  0,   17, CREAM],
+  ['belly',       8,  54,  0,   13, CREAM],
+  ['chest',     -24,  60,  0,   19, CREAM],
+
+  // ── Neck / Head (long neck, big graphic head) ──
+  ['neck',      -46,  76,  0,    8, CREAM],
+  ['head',      -56,  96,  0,   18, CREAM],
+  ['faceMask',  -68,  89,  2,    9, SEAL],
+  ['muzzle',    -76,  86,  3,    5, SEAL_LIGHT],
+  ['nose',      -80,  88,  4,  2.2, PINK],
+  ['chin',      -63,  83,  1.5,  5, CREAM_DARK],
+
+  // ── Eyes (flat, graphic — no shine balls) ──
+  ['eyeL',      -60, 101,  5,  4.5, BLUE_EYE],
+  ['eyeR',      -66,  97,  6,  4.0, BLUE_EYE],
+  ['pupilL',    -61, 101,  6,  2.6, PUPIL],
+  ['pupilR',    -67,  97,  7,  2.3, PUPIL],
+
+  // ── Ears (tall, directional wedges — not ornamental) ──
+  ['earBaseL',  -47, 112, -1,   5.5, SEAL],
+  ['earTipL',   -42, 130, -1,   2.2, SEAL],
+  ['earBaseR',  -58, 110,  2,   5,   SEAL],
+  ['earTipR',   -54, 127,  2,   2,   SEAL],
+
+  // ── Front left leg (near) — thin, structural ──
+  ['shoulderL', -26,  44,  4,   7, CREAM],
+  ['elbowL',    -28,  27,  4,   5.5, CREAM],
+  ['wristL',    -27,  12,  4,   5, CREAM_DARK],
+  ['pawFL',     -27,   3,  4,   6, SEAL],
+
+  // ── Front right leg (far) ──
+  ['shoulderR', -20,  44, -4,   7, CREAM],
+  ['elbowR',    -22,  27, -4,   5.5, CREAM],
+  ['wristR',    -21,  12, -4,   5, CREAM_DARK],
+  ['pawFR',     -21,   3, -4,   6, SEAL],
+
+  // ── Hind left leg (near) — longer, more angular ──
+  ['hipJointL',  36,  42,  4,   9, CREAM],
+  ['kneeL',      44,  23,  4,   6, CREAM],
+  ['ankleL',     38,   9,  4,   5, CREAM_DARK],
+  ['pawHL',      36,   3,  4,   6, SEAL],
+
+  // ── Hind right leg (far) ──
+  ['hipJointR',  42,  42, -4,   9, CREAM],
+  ['kneeR',      48,  23, -4,   6, CREAM],
+  ['ankleR',     42,   9, -4,   5, CREAM_DARK],
+  ['pawHR',      40,   3, -4,   6, SEAL],
+
+  // ── Tail chain (whip-thin) ──
+  ['tail0',  55,  66,  0,  4.5, CREAM],
+  ['tail1',  67,  76,  0,  3.5, CREAM],
+  ['tail2',  77,  88,  0,  3.0, CREAM_DARK],
+  ['tail3',  84, 100,  0,  2.4, SEAL],
+  ['tail4',  88, 110,  0,  1.8, SEAL],
+];
+
+// ─── CONNECTIONS (Linez) ────────────────────────────────────────
+const CONNECTIONS = [
+  ['hips','belly'],['belly','chest'],['chest','neck'],['neck','head'],
+  ['head','faceMask'],['head','chin'],['faceMask','muzzle'],
+  ['head','earBaseL'],['earBaseL','earTipL'],
+  ['head','earBaseR'],['earBaseR','earTipR'],
+  ['chest','shoulderL'],['shoulderL','elbowL'],['elbowL','wristL'],['wristL','pawFL'],
+  ['chest','shoulderR'],['shoulderR','elbowR'],['elbowR','wristR'],['wristR','pawFR'],
+  ['hips','hipJointL'],['hipJointL','kneeL'],['kneeL','ankleL'],['ankleL','pawHL'],
+  ['hips','hipJointR'],['hipJointR','kneeR'],['kneeR','ankleR'],['ankleR','pawHR'],
+  ['hips','tail0'],['tail0','tail1'],['tail1','tail2'],['tail2','tail3'],['tail3','tail4'],
+];
+
+// ─── NODE GROUPS (for animation targeting) ──────────────────────
+const HEAD_PARTS = [
+  'head','faceMask','muzzle','nose','chin',
+  'eyeL','eyeR','pupilL','pupilR',
+  'earBaseL','earTipL','earBaseR','earTipR'
+];
+const TAIL_PARTS = ['tail0','tail1','tail2','tail3','tail4'];
+const EYE_PARTS  = ['eyeL','eyeR','pupilL','pupilR'];
+
+// ─── BUILD THE CAT ──────────────────────────────────────────────
+const N = {};  // nodes, keyed by name
+
+function makeBallMaterial(color) {
+  return new THREE.MeshLambertMaterial({ color, flatShading: true });
+}
+
+for (const [name, x, y, z, r, color] of BLUEPRINT) {
+  const geo  = new THREE.SphereGeometry(1, 10, 7); // low-poly: visible facets
+  const mat  = makeBallMaterial(color);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, y, z);
+  mesh.scale.setScalar(r);
+  catGroup.add(mesh);
+  N[name] = {
+    mesh, color,
+    rest:   new THREE.Vector3(x, y, z),
+    offset: new THREE.Vector3(),
+    r, baseR: r, scaleY: 1,
+  };
+}
+
+// ─── CONNECTORS (flat trapezoid "Linez") ────────────────────────
+const connectors = [];
+
+for (const [a, b] of CONNECTIONS) {
+  const nA = N[a], nB = N[b];
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(12);            // 4 verts × 3
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setIndex([0,1,2, 0,2,3]);
+  // colour = blend toward the parent node
+  const mat = new THREE.MeshBasicMaterial({
+    color: nA.color, side: THREE.DoubleSide,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  catGroup.add(mesh);
+  connectors.push({ mesh, geo, nA, nB, name: `${a}->${b}` });
+}
+
+function updateConnectors() {
+  for (const c of connectors) {
+    const pA = c.nA.mesh.position;
+    const pB = c.nB.mesh.position;
+    const rA = c.nA.r * 0.48;       // narrow: show the construction
+    const rB = c.nB.r * 0.48;
+    const dx = pB.x - pA.x, dy = pB.y - pA.y;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    const px = -dy / len, py = dx / len;
+    const z = Math.min(pA.z, pB.z) - 1.5;
+    const p = c.geo.attributes.position.array;
+    p[0]=pA.x+px*rA; p[1]=pA.y+py*rA; p[2]=z;
+    p[3]=pA.x-px*rA; p[4]=pA.y-py*rA; p[5]=z;
+    p[6]=pB.x-px*rB; p[7]=pB.y-py*rB; p[8]=z;
+    p[9]=pB.x+px*rB; p[10]=pB.y+py*rB; p[11]=z;
+    c.geo.attributes.position.needsUpdate = true;
+  }
+}
+
+// ─── WHISKERS ───────────────────────────────────────────────────
+const whiskerMat = new THREE.LineBasicMaterial({ color: SEAL, transparent: true, opacity: 0.45 });
+const whiskerDefs = [
+  { dx:-20, dy: 4, dz: 7 }, { dx:-25, dy: 0, dz: 6 }, { dx:-18, dy:-4, dz: 7 },
+  { dx:-20, dy: 4, dz:-3 }, { dx:-25, dy: 0, dz:-2 }, { dx:-18, dy:-4, dz:-3 },
+];
+const whiskers = [];
+for (const w of whiskerDefs) {
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+  const line = new THREE.Line(geo, whiskerMat);
+  catGroup.add(line);
+  whiskers.push({ line, geo, ...w });
+}
+function updateWhiskers() {
+  const m = N.muzzle.mesh.position;
+  for (const w of whiskers) {
+    const p = w.geo.attributes.position.array;
+    p[0]=m.x; p[1]=m.y; p[2]=m.z;
+    p[3]=m.x+w.dx; p[4]=m.y+w.dy; p[5]=m.z+w.dz;
+    w.geo.attributes.position.needsUpdate = true;
+  }
+}
+
+// ─── SHADOW ─────────────────────────────────────────────────────
+const shadowGeo = new THREE.PlaneGeometry(1, 1);
+const shadowMat = new THREE.MeshBasicMaterial({
+  color: 0x000000, transparent: true, opacity: 0.06,
+});
+const shadow = new THREE.Mesh(shadowGeo, shadowMat);
+shadow.scale.set(90, 10, 1);
+shadow.position.set(5, 0, -3);
+catGroup.add(shadow);
+
+// Floor line
+const floorGeo = new THREE.PlaneGeometry(800, 1.5);
+const floorMat = new THREE.MeshBasicMaterial({ color: 0xB5A58A });
+const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+floorMesh.position.set(0, -1, -4);
+catGroup.add(floorMesh);
+
+// ─── CUSTOM CURSOR ──────────────────────────────────────────────
+const cursorEl = document.getElementById('cursor');
+const infoEl   = document.getElementById('info');
+const moodEl   = document.getElementById('mood');
+setTimeout(() => infoEl.classList.add('show'), 1200);
+
+// ─── MOUSE STATE ────────────────────────────────────────────────
+const mouse = { x: 0, y: 0, wx: 0, wy: 0, active: false };
+
+function screenToWorld(sx, sy) {
+  return {
+    x: (sx / window.innerWidth  - 0.5) * frustum * aspect,
+    y: -(sy / window.innerHeight - 0.5) * (frustum - 30) - 15,
+  };
+}
+
+window.addEventListener('mousemove', e => {
+  mouse.x = e.clientX; mouse.y = e.clientY;
+  const w = screenToWorld(e.clientX, e.clientY);
+  mouse.wx = w.x; mouse.wy = w.y;
+  mouse.active = true;
+  cursorEl.style.left = e.clientX + 'px';
+  cursorEl.style.top  = e.clientY + 'px';
+  cursorEl.classList.add('visible');
+});
+window.addEventListener('mouseleave', () => {
+  mouse.active = false;
+  cursorEl.classList.remove('visible');
+});
+
+// ─── ANIMATION STATE ────────────────────────────────────────────
+let time = 0, dt = 0, lastT = 0;
+
+// Blink
+let blinkTimer = 2 + Math.random() * 4;
+let blinkPhase = -1;    // <0 = not blinking
+
+// Petting
+let isPetting = false, petTimer = 0, petIntensity = 0;
+
+// Walk
+let isWalking = false, walkPhase = 0, walkSpeed = 0;
+let facing = -1;        // -1=left, 1=right
+
+// Autonomous behavior
+let behaviorTimer = 4 + Math.random() * 8;
+let idleFidgetTimer = 2 + Math.random() * 3;
+
+// Mood display
+let currentMood = 'content';
+function setMood(m) { currentMood = m; moodEl.textContent = m; }
+setMood('content');
+
+// ─── ANIMATION LAYERS ───────────────────────────────────────────
+
+function layerBreathing(t) {
+  const b = Math.sin(t * 2.0) * 0.5 + Math.sin(t * 1.2) * 0.3;
+  N.chest.offset.y  += b * 2.2;
+  N.belly.offset.y  += b * 1.6;
+  N.hips.offset.y   += b * 0.8;
+  N.neck.offset.y   += b * 1.0;
+  // subtle chest swell
+  N.chest.r = N.chest.baseR * (1 + b * 0.025);
+  N.belly.r = N.belly.baseR * (1 + b * 0.018);
+}
+
+function layerBlinking(dt) {
+  if (isPetting) return;                        // pet layer owns eyes
+  if (blinkPhase < 0) {
+    blinkTimer -= dt;
+    if (blinkTimer <= 0) { blinkPhase = 0; }
+    return;
+  }
+  blinkPhase += dt * 14;
+  let sq;
+  if (blinkPhase < 0.5)      sq = 1 - blinkPhase * 2;
+  else if (blinkPhase < 0.6) sq = 0.05;           // hold shut
+  else                        sq = (blinkPhase - 0.6) / 0.4;
+  sq = Math.max(0.05, Math.min(1, sq));
+  for (const n of EYE_PARTS) N[n].scaleY = sq;
+  if (blinkPhase >= 1) {
+    blinkPhase = -1;
+    for (const n of EYE_PARTS) N[n].scaleY = 1;
+    // constrained random: 2-7s between blinks
+    blinkTimer = 2 + Math.random() * 5;
+  }
+}
+
+function layerTailSway(t) {
+  for (let i = 0; i < TAIL_PARTS.length; i++) {
+    const n = N[TAIL_PARTS[i]];
+    const phase = t * 1.4 + i * 0.55;
+    const amp = (i + 1) * 1.6;
+    n.offset.x += Math.sin(phase) * amp;
+    n.offset.y += Math.cos(phase * 0.6) * amp * 0.25;
+  }
+}
+
+function layerHeadBob(t) {
+  const bob = Math.sin(t * 0.9) * 1.0 + Math.sin(t * 1.7) * 0.4;
+  for (const name of HEAD_PARTS) {
+    N[name].offset.y += bob;
+  }
+  N.neck.offset.y += bob * 0.45;
+}
+
+function layerHeadTracking() {
+  if (!mouse.active) return;
+  // World position of head (accounting for group flip)
+  const scX = catGroup.scale.x;
+  const hx = (N.head.rest.x + N.head.offset.x) * scX + catGroup.position.x;
+  const hy = N.head.rest.y + N.head.offset.y + catGroup.position.y;
+  const dx = mouse.wx - hx;
+  const dy = mouse.wy - hy;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist < 3) return;
+  // Convert world-space delta to local-space offset
+  const localDx = dx * scX;
+  const maxOff = 10;
+  const tx = Math.max(-maxOff, Math.min(maxOff, localDx * 0.06));
+  const ty = Math.max(-maxOff * 0.7, Math.min(maxOff * 0.7, dy * 0.06));
+  for (const name of HEAD_PARTS) {
+    N[name].offset.x += tx;
+    N[name].offset.y += ty;
+  }
+  N.neck.offset.x += tx * 0.35;
+  N.neck.offset.y += ty * 0.25;
+  // Pupils track more aggressively (in local space)
+  const px = Math.max(-3, Math.min(3, localDx * 0.02));
+  const py = Math.max(-2, Math.min(2, dy * 0.02));
+  N.pupilL.offset.x += px;  N.pupilL.offset.y += py;
+  N.pupilR.offset.x += px;  N.pupilR.offset.y += py;
+}
+
+function layerPetting(dt) {
+  if (!isPetting) return;
+  petTimer -= dt;
+  petIntensity = Math.min(1, petIntensity + dt * 3);
+  // Pleased eyes (half-closed)
+  const sq = 0.3 + 0.2 * Math.sin(time * 4);
+  for (const n of EYE_PARTS) N[n].scaleY = sq;
+  // Lean into the touch slightly
+  const lean = petIntensity * 3;
+  N.head.offset.y  += lean;
+  N.neck.offset.y  += lean * 0.5;
+  N.chest.offset.y += lean * 0.2;
+  // Tail goes happy — faster sway
+  for (let i = 0; i < TAIL_PARTS.length; i++) {
+    N[TAIL_PARTS[i]].offset.x += Math.sin(time * 4 + i * 0.5) * (i + 1) * 1.2;
+  }
+  if (petTimer <= 0) {
+    isPetting = false; petIntensity = 0;
+    for (const n of EYE_PARTS) N[n].scaleY = 1;
+    setMood('content');
+  }
+}
+
+// ─── WALKING ────────────────────────────────────────────────────
+// Deliberate, unhurried Siamese gait (low liveliness)
+
+function layerWalking(dt) {
+  if (!isWalking) return;
+  const targetSpeed = 28;                       // px/s — slow and elegant
+  walkSpeed += (targetSpeed - walkSpeed) * dt * 3;
+  walkPhase += dt * 2.8;
+  catGroup.position.x += facing * walkSpeed * dt;
+
+  // Body bob
+  const bob = Math.abs(Math.sin(walkPhase * 2)) * 1.8;
+  N.chest.offset.y += bob;
+  N.belly.offset.y += bob * 0.7;
+  N.hips.offset.y  += bob * 0.4;
+
+  // 4-beat gait: HL, FL, HR, FR
+  const legAnim = (paw, ankle, knee, phase) => {
+    const lift  = Math.max(0, Math.sin(walkPhase + phase)) * 14;
+    const stride = Math.cos(walkPhase + phase) * 10 * facing;
+    N[paw].offset.y    += lift;
+    N[paw].offset.x    += stride;
+    N[ankle].offset.y  += lift * 0.7;
+    N[ankle].offset.x  += stride * 0.7;
+    N[knee].offset.y   += lift * 0.3;
+    N[knee].offset.x   += stride * 0.4;
+  };
+  legAnim('pawHL','ankleL','kneeL', 0);
+  legAnim('pawFL','wristL','elbowL', Math.PI * 0.5);
+  legAnim('pawHR','ankleR','kneeR', Math.PI);
+  legAnim('pawFR','wristR','elbowR', Math.PI * 1.5);
+
+  // Shoulder / hip joint sway
+  N.shoulderL.offset.y += Math.sin(walkPhase + Math.PI*0.5) * 2;
+  N.shoulderR.offset.y += Math.sin(walkPhase + Math.PI*1.5) * 2;
+  N.hipJointL.offset.y += Math.sin(walkPhase) * 2;
+  N.hipJointR.offset.y += Math.sin(walkPhase + Math.PI) * 2;
+}
+
+function startWalk(dir) {
+  facing = dir;
+  catGroup.scale.x = dir < 0 ? 1 : -1;
+  isWalking = true;
+  walkPhase = 0;
+  walkSpeed = 0;
+  setMood('strolling');
+}
+
+function stopWalk() {
+  isWalking = false;
+  walkSpeed = 0;
+  setMood('content');
+}
+
+// ─── AUTONOMOUS BEHAVIOR (constrained randomness) ───────────────
+
+function updateBehavior(dt) {
+  // Edge check while walking
+  if (isWalking) {
+    const edge = frustum * aspect / 2 - 40;
+    if (Math.abs(catGroup.position.x) > edge) {
+      stopWalk();
+      behaviorTimer = 3 + Math.random() * 5;
+      return;
+    }
+  }
+
+  behaviorTimer -= dt;
+  if (behaviorTimer <= 0 && !isWalking && !isPetting) {
+    const roll = Math.random();
+    if (roll < 0.55) {
+      // Walk to a random spot
+      const target = -100 + Math.random() * 200;
+      const dir = target > catGroup.position.x ? 1 : -1;
+      startWalk(dir);
+      // Walk for 2-5 seconds, then stop
+      behaviorTimer = 2 + Math.random() * 3;
+    } else {
+      // Stay idle, reset
+      behaviorTimer = 5 + Math.random() * 10;
+    }
+  }
+
+  // Walking auto-stop
+  if (isWalking) {
+    // Timer handles walk duration (set above)
+    if (behaviorTimer <= 0) {
+      stopWalk();
+      behaviorTimer = 4 + Math.random() * 8;
+    }
+  }
+
+  // Idle fidgets: occasional ear twitch, tail flick
+  if (!isWalking) {
+    idleFidgetTimer -= dt;
+    if (idleFidgetTimer <= 0) {
+      // Quick ear twitch
+      const ear = Math.random() > 0.5 ? 'earTipL' : 'earTipR';
+      N[ear].offset.x += (Math.random() - 0.5) * 6;
+      N[ear].offset.y += Math.random() * 4;
+      idleFidgetTimer = 1.5 + Math.random() * 4;
+    }
+  }
+}
+
+// ─── PETTING INTERACTION ────────────────────────────────────────
+
+window.addEventListener('click', e => {
+  const w = screenToWorld(e.clientX, e.clientY);
+  // Check distance to cat center
+  const cx = catGroup.position.x + 5;
+  const cy = catGroup.position.y + 60;
+  const d  = Math.sqrt((w.x - cx) ** 2 + (w.y - cy) ** 2);
+  if (d < 85) {
+    isPetting = true;
+    petTimer = 2.0;
+    petIntensity = 0;
+    if (isWalking) stopWalk();
+    setMood('pleased');
+    // Interrupt info text
+    infoEl.textContent = '~ purrrr ~';
+    setTimeout(() => {
+      infoEl.textContent = 'move your mouse to say hello \u00B7 click to pet';
+    }, 2500);
+  }
+});
+
+// ─── RESIZE ─────────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  aspect = window.innerWidth / window.innerHeight;
+  camera.left   = -frustum * aspect / 2;
+  camera.right  =  frustum * aspect / 2;
+  camera.top    =  frustum / 2;
+  camera.bottom = -frustum / 2 + 30;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ─── MAIN LOOP ──────────────────────────────────────────────────
+
+function animate(ts) {
+  requestAnimationFrame(animate);
+  const t = ts * 0.001;
+  dt = Math.min(t - lastT, 0.06);
+  lastT = t;
+  time = t;
+
+  // 1. Reset per-frame state
+  for (const name in N) {
+    const n = N[name];
+    n.offset.set(0, 0, 0);
+    n.r = n.baseR;
+    // scaleY persists across frames (set by blink/pet)
+  }
+
+  // 2. Layer all animations (order matters: later layers override)
+  layerBreathing(t);
+  layerBlinking(dt);
+  layerTailSway(t);
+  layerHeadBob(t);
+  layerHeadTracking();
+  layerWalking(dt);
+  layerPetting(dt);
+  updateBehavior(dt);
+
+  // 3. Apply final positions + scales
+  for (const name in N) {
+    const n = N[name];
+    n.mesh.position.set(
+      n.rest.x + n.offset.x,
+      n.rest.y + n.offset.y,
+      n.rest.z + n.offset.z,
+    );
+    const s = n.r / n.baseR;
+    n.mesh.scale.set(n.r, n.r * n.scaleY, n.r);
+  }
+
+  // 4. Update connectors & details
+  updateConnectors();
+  updateWhiskers();
+
+  // 5. Shadow follows body center
+  const cx = (N.chest.mesh.position.x + N.hips.mesh.position.x) / 2;
+  shadow.position.x = cx;
+
+  renderer.render(scene, camera);
+}
+
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
