@@ -14,9 +14,11 @@ import * as catAnim from './cat/catAnim.js';
 import * as catTail from './cat/catTail.js';
 import * as hud from './ui/hud.js';
 import * as titleScreen from './ui/titleScreen.js';
+import * as mallfm from './ui/mallfm.js';
 import * as mixer from './audio/mixer.js';
 import * as music from './audio/music.js';
 import * as crowd from './audio/crowd.js';
+import * as shepard from './audio/shepard.js';
 
 // ── Game state ──
 let state = 'title';  // 'title' | 'play'
@@ -62,6 +64,13 @@ document.getElementById('ts').addEventListener('click', async () => {
     await mixer.init();
     await music.init();
     music.start();
+    // Shepard routes directly to master (bypasses crowd filter + reverb).
+    // Level starts at 0 — the MALL FM panel's LEVEL slider bleeds it in.
+    shepard.init(mixer.getMasterBus());
+    // MALL FM panel — the audition surface. Stands up a bottom tab that
+    // expands into the lab. Safe to init after audio so every control
+    // finds a live bus on first interaction.
+    mallfm.init();
   } catch (e) {
     console.warn('audio init failed', e);
   }
@@ -123,6 +132,8 @@ function loop(ts) {
 
   // Audio — per-frame crowd analysis (drives filter, reverb, drone, foley).
   crowd.update(dt, npcs.npcs, cat.headX, cat.stepZ, flow);
+  // Shepard advances phase every frame; setLevel(0) keeps it silent by default.
+  shepard.update(dt);
 
   // Update environment
   environment.update();

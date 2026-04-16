@@ -7,6 +7,9 @@
 
 set -e
 
+# Always clean up the esbuild tempfile on exit, even on failure
+trap 'rm -f .build_tmp.js' EXIT
+
 OUT="${1:-dist/pussyphus.html}"
 mkdir -p "$(dirname "$OUT")"
 
@@ -78,6 +81,8 @@ MODULE_ORDER = [
     "src/audio/mixer.js",
     "src/audio/music.js",
     "src/audio/crowd.js",
+    "src/audio/shepard.js",
+    "src/ui/mallfm.js",
     "src/main.js",
 ]
 

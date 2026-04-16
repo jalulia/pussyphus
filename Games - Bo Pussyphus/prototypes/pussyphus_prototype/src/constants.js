@@ -118,3 +118,14 @@ export const DRONE_FLOW_FREQ_SHIFT = 5;
 
 // ── Audio — master ──
 export const AUDIO_MASTER_GAIN = 0.7;
+
+// ── Audio — Shepard-Risset glissando ──
+// Six sines stacked across 6 octaves from A1, each with a Gaussian amplitude
+// envelope centered in its band. 12 s per octave is slow enough to read as
+// "eternal rise" without feeling like a ramp. Off by default; MallFM LEVEL
+// slider bleeds it in.
+export const SHEPARD_VOICES = 6;
+export const SHEPARD_BASE_FREQ = 55;    // A1
+export const SHEPARD_OCTAVES = 6;       // spans A1..A7
+export const SHEPARD_SIGMA = 0.25;      // Gaussian envelope width (0..1)
+export const SHEPARD_PERIOD_S = 12;     // seconds per octave rise

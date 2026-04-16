@@ -19,7 +19,8 @@ pussyphus/
 │   ├── cat/
 │   │   ├── cat.js        ← Cat entity: spring chain, skeleton, state
 │   │   ├── catModel.js   ← Three.js meshes: tube geo, face, legs, ears, whiskers
-│   │   └── catAnim.js    ← Animation: walk cycles, flow states, ear tracking
+│   │   ├── catAnim.js    ← Animation: walk cycles, flow states, ear tracking
+│   │   └── catTail.js    ← Tail state machine: IDLE / MOVING / IMPACT
 │   ├── world/
 │   │   ├── escalator.js  ← Step pool, belt physics, incline math
 │   │   ├── npcs.js       ← NPC spawning, types, behaviors, collision
@@ -28,9 +29,16 @@ pussyphus/
 │   │   ├── materials.js  ← All Three.js materials (cat, world, NPC palettes)
 │   │   ├── scene.js      ← Scene setup, lights, fog, camera rig
 │   │   └── dither.js     ← Dither shader, render targets, post-processing
-│   └── ui/
-│       ├── hud.js        ← Flow bar, mood, altitude, zone label, status bar
-│       └── titleScreen.js← Title/start overlay
+│   ├── ui/
+│   │   ├── hud.js        ← Flow bar, mood, altitude, zone label, status bar
+│   │   ├── titleScreen.js← Title/start overlay
+│   │   └── mallfm.js     ← Mall FM station identity (bumper, ident)
+│   └── audio/
+│       ├── mixer.js      ← AudioContext, master gain, crowd lowpass, reverb, foley bus
+│       ├── music.js      ← Tone Transport, Rhodes+bass+pad, 8 phrases, voice leading
+│       ├── crowd.js      ← Per-frame density + foley, flow-driven reverb + drone pitch
+│       ├── shepard.js    ← Shepard-tone drone (infinite-ascent illusion)
+│       └── fragments.generated.js  ← Procedural melodic one-shots (base64 WAV data URLs)
 ├── build.sh              ← Bundles back to single HTML for distribution
 └── pussyphus_character_study.html  ← 2D reference (standalone)
 ```
@@ -51,8 +59,16 @@ index.html
        ├─ cat/cat.js           (entity state)
        ├─ cat/catModel.js      (mesh construction, uses materials)
        ├─ cat/catAnim.js       (per-frame animation)
+       ├─ cat/catTail.js       (tail state machine, drives spring-chain offsets)
        ├─ ui/hud.js            (DOM updates)
-       └─ ui/titleScreen.js    (start flow)
+       ├─ ui/titleScreen.js    (start flow)
+       ├─ ui/mallfm.js         (FM station identity)
+       └─ audio/
+            ├─ mixer.js        (AudioContext, routing graph, master)
+            ├─ music.js        (Tone Transport progression engine)
+            ├─ crowd.js        (reads npcs every frame, drives foley + filters)
+            ├─ shepard.js      (continuous Shepard-tone bed)
+            └─ fragments.generated.js (flow-threshold one-shots)
 ```
 
 ## Design Principles

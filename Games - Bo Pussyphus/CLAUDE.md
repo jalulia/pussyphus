@@ -20,14 +20,19 @@ Pussyphus/
 ├── CHANGELOG.md                       ← Version history
 ├── PUSSYPHUS_StateOfGameDesign_V1.md  ← Full GDD (the bible)
 ├── THE_PUSSYPHUS_Bo_Character.jpg     ← Character reference
+├── pussyphus-notes.md                 ← Working notes: voice, taglines, Bo
 ├── preflight.sh                       ← Consistency checker
+├── index.html                         ← GH Pages entry (redirects to prototype)
+├── docs/
+│   ├── plans/                         ← Design docs for larger features
+│   └── notes/                         ← Tuning logs, playtest notes
 └── prototypes/
     ├── pussyphus_prototype/           ← CANONICAL CODEBASE
     │   ├── index.html                 ← Entry point
-    │   ├── src/                       ← All game modules
+    │   ├── src/                       ← All game modules (cat, world, render, ui, audio)
     │   ├── build.sh                   ← Bundle to single HTML
     │   └── README.md                  ← Architecture docs
-    ├── pussyphus_character_study.html  ← 2D ballz+linez reference
+    ├── pussyphus_character_study.html ← 2D ballz+linez reference
     └── archive/                       ← Historical snapshots (don't edit)
 ```
 
@@ -52,7 +57,7 @@ Pussyphus/
 
 ## What's Built vs. What's Next
 
-See GDD sections 14 (WHAT'S BUILT vs. WHAT'S NOT) for the full breakdown. The vertical slice is complete. Phase 2 priorities: movement verbs, traffic patterns, collision animations, audio layer.
+See GDD sections 14 (WHAT'S BUILT vs. WHAT'S NOT) for the full breakdown. The vertical slice and the audio layer are both complete (v0.6). Phase 2 priorities now: movement verbs (slip/hop/brush), traffic patterns (soft choke, swing zone, sales ambush, rhythm windows), collision animations (stumble, tail flick, recovery trot), composure meter, zone progression past Kiosk Canyon.
 
 ## Julia's Working Style
 

@@ -12,6 +12,10 @@ import * as K from '../constants.js';
 let started = false;
 let masterGain, musicBus, foleyBus, crowdFilter, reverb, reverbWet;
 let _drone = null;
+let _droneGain = null;
+let _droneBaseA = 0;         // anchor freq for oscA; oscB = baseA + beatHz
+let _droneBeatHz = 0;        // detune between oscA/oscB; drives psychoacoustic throb
+let _labFrozen = false;      // when true, crowd.js no-ops so MallFM sliders hold
 let testOsc = null;
 
 export async function init() {
@@ -55,19 +59,23 @@ export async function init() {
   droneGain.gain.value = K.DRONE_GAIN;
   droneGain.connect(masterGain);
 
+  _droneBaseA = K.DRONE_FREQ_A;
+  _droneBeatHz = K.DRONE_FREQ_B - K.DRONE_FREQ_A;
+
   const oscA = ctx.createOscillator();
   oscA.type = 'sine';
-  oscA.frequency.value = K.DRONE_FREQ_A;
+  oscA.frequency.value = _droneBaseA;
   oscA.connect(droneGain);
   oscA.start();
 
   const oscB = ctx.createOscillator();
   oscB.type = 'sine';
-  oscB.frequency.value = K.DRONE_FREQ_B;
+  oscB.frequency.value = _droneBaseA + _droneBeatHz;
   oscB.connect(droneGain);
   oscB.start();
 
   _drone = { oscA, oscB, gain: droneGain };
+  _droneGain = droneGain;
 }
 
 function synthImpulse(ctx, seconds, decay) {
@@ -83,26 +91,80 @@ function synthImpulse(ctx, seconds, decay) {
   return buf;
 }
 
+// Called by crowd.js every frame. Gated by _labFrozen so MallFM sliders
+// aren't stomped during auditioning. MallFM uses labSetCrowdFilter instead.
 export function setCrowdFilter(cutoff, q) {
-  if (!crowdFilter) return;
+  if (!crowdFilter || _labFrozen) return;
   const now = Tone.getContext().rawContext.currentTime;
   crowdFilter.frequency.setTargetAtTime(cutoff, now, 1 / K.CROWD_FILTER_SMOOTH);
   crowdFilter.Q.setTargetAtTime(q, now, 1 / K.CROWD_FILTER_SMOOTH);
 }
 
 export function setReverbWet(wet) {
-  if (!reverbWet) return;
+  if (!reverbWet || _labFrozen) return;
   const now = Tone.getContext().rawContext.currentTime;
   reverbWet.gain.setTargetAtTime(wet, now, 0.3);
 }
 
 export function setDroneFlow(flow01) {
-  if (!_drone) return;
+  if (!_drone || _labFrozen) return;
   const now = Tone.getContext().rawContext.currentTime;
-  _drone.oscA.frequency.setTargetAtTime(
-    K.DRONE_FREQ_A + flow01 * K.DRONE_FLOW_FREQ_SHIFT, now, 0.5);
+  const a = _droneBaseA + flow01 * K.DRONE_FLOW_FREQ_SHIFT;
+  _drone.oscA.frequency.setTargetAtTime(a, now, 0.5);
+  _drone.oscB.frequency.setTargetAtTime(a + _droneBeatHz, now, 0.5);
+}
+
+// ── Lab setters (MallFM) ──
+// Always write, even when frozen — these represent a deliberate user action.
+
+export function setLabFrozen(on) { _labFrozen = !!on; }
+export function isLabFrozen() { return _labFrozen; }
+
+export function labSetCrowdFilter(cutoff, q) {
+  if (!crowdFilter) return;
+  const now = Tone.getContext().rawContext.currentTime;
+  crowdFilter.frequency.setTargetAtTime(cutoff, now, 0.1);
+  crowdFilter.Q.setTargetAtTime(q, now, 0.1);
+}
+
+export function labSetReverbWet(wet) {
+  if (!reverbWet) return;
+  const now = Tone.getContext().rawContext.currentTime;
+  reverbWet.gain.setTargetAtTime(wet, now, 0.1);
+}
+
+export function setMasterGain(v) {
+  if (!masterGain) return;
+  const now = Tone.getContext().rawContext.currentTime;
+  masterGain.gain.setTargetAtTime(v, now, 0.05);
+}
+
+export function setMusicBusGain(v) {
+  if (!musicBus) return;
+  const now = Tone.getContext().rawContext.currentTime;
+  musicBus.gain.setTargetAtTime(v, now, 0.05);
+}
+
+export function setFoleyBusGain(v) {
+  if (!foleyBus) return;
+  const now = Tone.getContext().rawContext.currentTime;
+  foleyBus.gain.setTargetAtTime(v, now, 0.05);
+}
+
+export function setDroneGain(v) {
+  if (!_droneGain) return;
+  const now = Tone.getContext().rawContext.currentTime;
+  _droneGain.gain.setTargetAtTime(v, now, 0.05);
+}
+
+// Sets the beat-frequency detune between the two drone sines. 0 = pure tone
+// (no throb), 3 = default, 12 = fast flutter. Anchor stays at _droneBaseA.
+export function setDroneBeatHz(hz) {
+  if (!_drone) return;
+  _droneBeatHz = Math.max(0, hz);
+  const now = Tone.getContext().rawContext.currentTime;
   _drone.oscB.frequency.setTargetAtTime(
-    K.DRONE_FREQ_B + flow01 * K.DRONE_FLOW_FREQ_SHIFT, now, 0.5);
+    _drone.oscA.frequency.value + _droneBeatHz, now, 0.1);
 }
 
 export function getMusicBus() { return musicBus; }

@@ -1,9 +1,9 @@
 # PUSSYPHUS — Game Design Document
 
-**Version:** 0.4 (Folder Reorganization + Breed Correction)
-**Date:** April 13, 2026
+**Version:** 0.6 (Audio System + Tail State Machine + Repo Cleanup)
+**Date:** April 16, 2026
 **Author:** Julia Compton
-**Platform:** Browser (modular ES modules, Three.js r128, single-HTML build via `build.sh`)
+**Platform:** Browser (modular ES modules, Three.js r128, Tone.js 14.8.49, single-HTML build via `build.sh`)
 
 ---
 
@@ -297,22 +297,34 @@ camera.lookAt(headX * 0.3, stepY(-3) + 0.5, -4);
 ### Active (Canonical)
 | Path | Description |
 |------|-------------|
-| `prototypes/pussyphus_prototype/` | **Canonical modular codebase.** ES modules, Three.js r128. Run with any static server. |
+| `PUSSYPHUS_StateOfGameDesign_V1.md` | This document — game design bible |
+| `CLAUDE.md` | Project context for LLM assistants — read-first primer |
+| `CHANGELOG.md` | Version history |
+| `pussyphus-notes.md` | Working notes: voice, taglines, philosophical grounding, Bo |
+| `THE_PUSSYPHUS_Bo_Character.jpg` | Bo character reference image |
+| `preflight.sh` | Consistency checker — run before committing |
+| `index.html` | GitHub Pages entry — redirects to the prototype |
+| `docs/plans/` | Design docs for larger features (e.g., audio system design + implementation) |
+| `docs/notes/` | Tuning logs and playtest notes |
+| `prototypes/pussyphus_prototype/` | **Canonical modular codebase.** ES modules, Three.js r128, Tone.js 14.8.49. Run with any static server. |
 | `prototypes/pussyphus_prototype/index.html` | Entry point — DOM shell, styles, importmap, boots `src/main.js` |
-| `prototypes/pussyphus_prototype/src/` | All game logic: `cat/`, `world/`, `render/`, `ui/`, `main.js`, `constants.js`, `input.js` |
+| `prototypes/pussyphus_prototype/src/main.js` | Game loop, state machine, orchestration |
+| `prototypes/pussyphus_prototype/src/constants.js` | All tuning constants — single source of truth |
+| `prototypes/pussyphus_prototype/src/input.js` | Unified keyboard/mouse/touch/scroll input state |
+| `prototypes/pussyphus_prototype/src/cat/` | `cat.js` (entity/spring chain), `catModel.js` (meshes), `catAnim.js` (walk cycles, ear tracking), `catTail.js` (IDLE/MOVING/IMPACT state machine) |
+| `prototypes/pussyphus_prototype/src/world/` | `escalator.js` (step pool, belt), `environment.js` (kiosk chunks), `npcs.js` (spawning, types, collision) |
+| `prototypes/pussyphus_prototype/src/render/` | `scene.js` (THREE setup), `materials.js` (palettes), `dither.js` (Bayer shader, post-fx) |
+| `prototypes/pussyphus_prototype/src/ui/` | `hud.js` (flow bar, status), `titleScreen.js` (boot overlay), `mallfm.js` (Mall FM station identity) |
+| `prototypes/pussyphus_prototype/src/audio/` | `mixer.js` (routing graph), `music.js` (Tone Transport progression engine), `crowd.js` (per-frame density + foley), `shepard.js` (Shepard-tone drone), `fragments.generated.js` (procedural melodic one-shots) |
 | `prototypes/pussyphus_prototype/build.sh` | Bundles modular source back to single HTML for distribution |
 | `prototypes/pussyphus_character_study.html` | 2D canvas ballz+linez Cornish Rex reference. Animation states. Standalone. ~371 lines |
-| `PUSSYPHUS_StateOfGameDesign_V1.md` | This document — game design bible |
-| `THE_PUSSYPHUS_Bo_Character.jpg` | Bo character reference image |
 
 ### Archived (Historical Snapshots — do not edit)
 | Path | Description |
 |------|-------------|
 | `prototypes/archive/pussyphus_v1_monolithic_825L.html` | First complete monolithic prototype. Still has Siamese refs in comments. |
-| `prototypes/archive/pussyphus_v2_monolithic_825L_DUPLICATE-OF-V1.html` | Identical to v1 despite name — preserved for provenance |
 | `prototypes/archive/bo-early/pussyphus_bo-early_631L.html` | Earlier Bo prototype (631 lines, from Projects/Bo/) |
 | `prototypes/archive/bo-early/pussyphus_ballz_cgpt_748L.html` | CGPT-generated ballz prototype (748 lines) |
-| `prototypes/pussyphus_modular.zip` | Zip snapshot of modular prototype |
 
 ### Project Knowledge (read-only, attached to Claude project)
 | File | Description |
@@ -351,18 +363,22 @@ Extracted from .cat breed files and deep dive PDF:
 - [x] Mouse + keyboard + touch controls
 - [x] Static background (environment doesn't ride the belt)
 - [x] Raised tail with upward curve
-- [x] Ear proximity sensing (ears rotate toward nearest obstacle)
+- [x] Ear proximity sensing (ears rotate toward nearest obstacle) — Cornish Rex silhouette: base-on-head, tapers upward
 - [x] NPC hair fix (random dark colors, not cat material)
+
+### BUILT (v0.5–v0.6 — Audio + Tail)
+- [x] **Audio layer:** three-module stack (`mixer.js`, `music.js`, `crowd.js`) + Shepard-tone drone + Mall FM station identity. Tone.js Transport progression at 92 BPM, city pop / bossa / cumbia / synth-pop phrase families with common-tone voice leading. Per-NPC proximity occlusion, flow-driven reverb wet + drone pitch. Procedural fragment one-shots on flow integer crossings ≥5. `?audioDebug=1` URL param for live telemetry.
+- [x] **Tail state machine (`catTail.js`):** IDLE / MOVING / IMPACT transitions on top of the existing spring chain. IDLE = base dips, tip curls, slow swish. MOVING = perkier base, quicker sway. IMPACT = lateral impulse away from collider, exponential decay. Replaces the undifferentiated sin(t*2.5) wave. Emotional telemetry is now actually implemented.
 
 ### NOT BUILT (Phase 2+)
 - [ ] **Movement verbs:** slip (near-miss grace note), hop (step transition), brush (light contact without full collision)
 - [ ] **Traffic patterns:** soft choke (2-3 NPCs close together), swing zone (bag arc creates moving hazard), sales ambush (rep lunges), clean rhythm windows (intentional gaps for flow building)
-- [ ] **Collision animations:** stumble, annoyed tail flick, recovery trot, composure shake-off
-- [ ] **Audio layer:** mall muzak drone, escalator hum, flow-linked tonal additions, NPC ambient (bag rustle, phone murmur, sales pitch fragment)
+- [ ] **Collision animations:** stumble, annoyed tail flick, recovery trot, composure shake-off (tail IMPACT state is in — the body response isn't)
 - [ ] **Zone progression:** Zone 02+, environment palette shifts, different obstacle types at altitude thresholds
 - [ ] **Cat character in game still uses tube geometry** — the 2D ballz+linez study looks significantly better and the proportions have been applied, but the actual rendering technique (spheres+connectors vs tubes) hasn't been ported to 3D
 - [ ] **Scent system:** proximity-based environmental awareness (hinted in UI, not implemented)
 - [ ] **Composure meter:** failure state = loss of composure, not death. Stumbles accumulate, cat gets flustered, eventually sits down and refuses to continue until composure recovers.
+- [ ] **Real recorded fragments** to replace the procedurally synthesized `fragments.generated.js` placeholders
 
 ---
 

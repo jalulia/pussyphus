@@ -4,6 +4,54 @@ All notable changes to this project. Newest first.
 
 ---
 
+## v0.6 — Tail State Machine + Audio Follow-ups + Repo Cleanup (April 15–16, 2026)
+
+**Tail (`src/cat/catTail.js`):** new sibling module owning a small state
+machine on top of the existing spring chain in `cat.js`. Transitions
+IDLE↔MOVING on `|smoothX| > threshold` with a 0.15s blend; IMPACT fires
+additively on NPC hit and decays over 0.8s. IDLE: base dips, tip curls
+upward, slow swish. MOVING: base perks up, quicker/lazier sway.
+IMPACT: lateral impulse away from collider, exponential decay. Wired
+into `main.js` per-frame update and on `npcResult.hit`. All tuning in
+`constants.js`. Replaces the undifferentiated `sin(t*2.5)` wave.
+
+**Ears (`src/cat/catModel.js`):** cone origin moved from geometric center
+to base via `geo.translate(0, h/2, 0)` so `position` now sets the base
+attachment. Lowered `earY` to sit on top of the head mask and reduced
+default outward tilt. Ears now read as triangles rising from the head,
+not wedges floating above it.
+
+**Audio follow-ups:** added `src/audio/shepard.js` (Shepard-tone drone)
+and `src/ui/mallfm.js` (Mall FM station identity), both missed in the
+prior audio commit. Fixed Rhodes mono→poly voice handling and clamped
+humanize jitter to prevent a Tone scheduler exception.
+
+**NPCs (`src/world/npcs.js`):** replaced `Object.assign` with
+`position.set()` to preserve the Three.js `onChange` hook on
+`Vector3.position` — silent matrix-update bug fixed.
+
+**Pages:** root `index.html` now redirects to the prototype so
+`jalulia.github.io/pussyphus/` lands on the playable build instead of
+a file listing.
+
+**Repo hygiene:** added `.gitignore` (`.DS_Store`, `*.zip`, `dist/`,
+`.build_tmp.js`, `node_modules/`), untracked previously-committed
+crud. Deleted duplicate `pussyphus_v2_monolithic_825L_DUPLICATE-OF-V1.html`
+(byte-identical to v1) and the stale `pussyphus_modular.zip` snapshot.
+Patched `build.sh` with a `trap` so `.build_tmp.js` is cleaned up even
+on build failure.
+
+**preflight.sh:** now tracks `catTail.js` and does a GDD-vs-CHANGELOG
+version sanity check — warns when the two disagree.
+
+**Docs:** GDD bumped 0.4 → 0.6. Section 12 file manifest rewritten to
+reflect current structure (docs/, pussyphus-notes.md, full src/ breakdown).
+Section 14 moves audio and tail state machine to BUILT; adds real-fragment
+replacement to the Phase 2 list. CLAUDE.md Phase 2 line updated to remove
+audio.
+
+---
+
 ## v0.5 — Audio System (April 15, 2026)
 
 **Three-module audio stack under `src/audio/`:**

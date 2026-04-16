@@ -55,6 +55,7 @@ EXPECTED_MODULES=(
   "src/cat/cat.js"
   "src/cat/catModel.js"
   "src/cat/catAnim.js"
+  "src/cat/catTail.js"
   "src/world/escalator.js"
   "src/world/environment.js"
   "src/world/npcs.js"
@@ -67,6 +68,8 @@ EXPECTED_MODULES=(
   "src/audio/music.js"
   "src/audio/crowd.js"
   "src/audio/fragments.generated.js"
+  "src/audio/shepard.js"
+  "src/ui/mallfm.js"
 )
 
 PROTO="$DIR/prototypes/pussyphus_prototype"
@@ -113,8 +116,18 @@ done
 # ── 5. GDD version check ──
 echo ""
 echo "── GDD Version ──"
-GDD_VER=$(grep -m1 "^\*\*Version:\*\*" "$DIR/PUSSYPHUS_StateOfGameDesign_V1.md" 2>/dev/null || echo "not found")
-echo "  $GDD_VER"
+GDD_VER_LINE=$(grep -m1 "^\*\*Version:\*\*" "$DIR/PUSSYPHUS_StateOfGameDesign_V1.md" 2>/dev/null || echo "not found")
+GDD_VER=$(echo "$GDD_VER_LINE" | grep -oE "[0-9]+\.[0-9]+" | head -1)
+CHANGELOG_VER=$(grep -m1 "^## v" "$DIR/CHANGELOG.md" 2>/dev/null | grep -oE "v[0-9]+\.[0-9]+" | head -1 | tr -d v)
+echo "  GDD:       $GDD_VER_LINE"
+echo "  CHANGELOG: latest = v$CHANGELOG_VER"
+if [ -n "$GDD_VER" ] && [ -n "$CHANGELOG_VER" ] && [ "$GDD_VER" = "$CHANGELOG_VER" ]; then
+  green "GDD version matches latest CHANGELOG entry"
+elif [ -n "$GDD_VER" ] && [ -n "$CHANGELOG_VER" ]; then
+  yellow "GDD ($GDD_VER) and CHANGELOG (v$CHANGELOG_VER) disagree — bump the GDD or add a changelog entry"
+else
+  yellow "Could not parse GDD or CHANGELOG version"
+fi
 
 # ── 6. Three.js import check ──
 echo ""
