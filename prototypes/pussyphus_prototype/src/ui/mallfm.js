@@ -38,7 +38,9 @@ const CSS = `
   left: 50%;
   bottom: 0;
   transform: translateX(-50%);
-  width: 440px;
+  /* Natural 440px on desktop; on narrow screens fit the viewport so the
+     panel never extends past the blue margin. */
+  width: min(440px, calc(100vw - 16px));
   max-height: 70vh;
   overflow-y: auto;
   background: #c0c0c0;

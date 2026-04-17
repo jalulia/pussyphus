@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PUSSYPHUS — mobile harness</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{min-height:100%;background:#0d0d22;color:#d8d0c8;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+  header{padding:18px 24px;border-bottom:1px solid #2a2a55;background:#15153a}
+  header h1{font-size:16px;letter-spacing:3px;color:#e8e0d8;margin-bottom:4px}
+  header p{font-size:12px;color:#8a8ab0;max-width:760px;line-height:1.5}
+  header code{background:#2a2a55;padding:1px 5px;border-radius:3px;color:#c8c0b8;font-size:11px}
+  .strip{display:flex;gap:24px;padding:24px;overflow-x:auto;align-items:flex-start}
+  .device{flex:0 0 auto;display:flex;flex-direction:column;gap:8px}
+  .label{font-size:11px;color:#8a8ab0;letter-spacing:2px;text-transform:uppercase}
+  .label b{color:#d8d0c8;font-weight:600}
+  .frame{
+    /* Phones get a matte bezel so it's obvious where the viewport edge sits.
+       The inner iframe is exactly the target CSS viewport size. */
+    background:#000;
+    border-radius:28px;
+    padding:12px;
+    box-shadow:0 8px 32px rgba(0,0,0,.6), inset 0 0 0 1px #333;
+  }
+  .frame iframe{
+    display:block;
+    border:none;
+    border-radius:20px;
+    background:#1a1a3e;
+  }
+  .controls{display:flex;gap:8px;padding:0 24px 24px;flex-wrap:wrap}
+  .controls button{
+    background:#2a2a55;color:#d8d0c8;border:1px solid #3a3a70;
+    padding:6px 12px;border-radius:4px;font-size:12px;cursor:pointer;
+    font-family:monospace;
+  }
+  .controls button:hover{background:#3a3a70}
+  .note{padding:12px 24px;background:#1a1a3e;border-top:1px solid #2a2a55;font-size:12px;color:#a8a8c8;line-height:1.6}
+  .note b{color:#e8e0d8}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>PUSSYPHUS — MOBILE HARNESS</h1>
+  <p>
+    Each frame below is a real iframe at the exact CSS-viewport size of the
+    target device. Blue margin should be visible on all sides. Tap to unlock
+    audio (iOS requires a user gesture in every iframe). If a frame appears
+    empty, hit <code>reload all</code> below.
+  </p>
+</header>
+
+<div class="controls">
+  <button onclick="reloadAll()">↻ reload all</button>
+  <button onclick="openDirect()">↗ open prototype directly</button>
+</div>
+
+<div class="strip" id="strip"></div>
+
+<div class="note">
+  <b>What to check on each frame:</b>
+  a visible blue margin on left + right; the Win95 toolbar and status-bar
+  aren't clipped; the MALL FM tab at the bottom doesn't exceed the frame
+  width when you open it; on a real iPhone, a tap on the title screen
+  starts audio (you should hear the escalator drone within ~1 s).
+</div>
+
+<script>
+  const DEVICES = [
+    { name: 'iPhone SE',       w: 320, h: 568 },
+    { name: 'iPhone 13 mini',  w: 375, h: 812 },
+    { name: 'iPhone 14',       w: 390, h: 844 },
+    { name: 'iPhone 14 Pro Max', w: 430, h: 932 },
+    { name: 'Android (Pixel)', w: 412, h: 915 },
+  ];
+  const SRC = 'pussyphus_prototype/';
+
+  const strip = document.getElementById('strip');
+  DEVICES.forEach(d => {
+    const wrap = document.createElement('div');
+    wrap.className = 'device';
+    wrap.innerHTML = `
+      <div class="label"><b>${d.name}</b> · ${d.w}×${d.h}</div>
+      <div class="frame">
+        <iframe src="${SRC}" width="${d.w}" height="${d.h}"
+                allow="autoplay"
+                title="${d.name}"></iframe>
+      </div>
+    `;
+    strip.appendChild(wrap);
+  });
+
+  function reloadAll() {
+    document.querySelectorAll('iframe').forEach(f => f.src = f.src);
+  }
+  function openDirect() { window.open(SRC, '_blank'); }
+</script>
+
+</body>
+</html>

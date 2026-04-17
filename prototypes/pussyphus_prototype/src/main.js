@@ -58,24 +58,39 @@ function start() {
   npcs.reset(sceneSetup.scene);
 }
 
-// Title screen click — browser autoplay gate means we init audio here.
-document.getElementById('ts').addEventListener('click', async () => {
-  try {
-    await mixer.init();
-    await music.init();
-    music.start();
-    // Shepard routes directly to master (bypasses crowd filter + reverb).
-    // Level starts at 0 — the MALL FM panel's LEVEL slider bleeds it in.
-    shepard.init(mixer.getMasterBus());
-    // MALL FM panel — the audition surface. Stands up a bottom tab that
-    // expands into the lab. Safe to init after audio so every control
-    // finds a live bus on first interaction.
-    mallfm.init();
-  } catch (e) {
-    console.warn('audio init failed', e);
+// Title screen gesture — browser autoplay gate means we init audio here.
+// Must use pointerdown (not click): on iOS Safari/Chrome, input.js calls
+// preventDefault on touchstart bubbling up from #gc, which cancels the
+// simulated click. pointerdown covers mouse, touch, and pen in one path,
+// and Tone.start() must be kicked synchronously in the gesture callback —
+// any preceding `await` would lose the user-gesture token on iOS.
+let audioUnlocked = false;
+async function unlockAndStart() {
+  if (!audioUnlocked) {
+    audioUnlocked = true;
+    try {
+      await mixer.init();
+      await music.init();
+      music.start();
+      // Shepard routes directly to master (bypasses crowd filter + reverb).
+      // Level starts at 0 — the MALL FM panel's LEVEL slider bleeds it in.
+      shepard.init(mixer.getMasterBus());
+      // MALL FM panel — the audition surface. Stands up a bottom tab that
+      // expands into the lab. Safe to init after audio so every control
+      // finds a live bus on first interaction.
+      mallfm.init();
+    } catch (e) {
+      audioUnlocked = false;
+      console.warn('audio init failed', e);
+    }
   }
   start();
-});
+}
+const tsEl = document.getElementById('ts');
+tsEl.addEventListener('pointerdown', unlockAndStart);
+// Fallback for ancient browsers without Pointer Events — harmless if
+// pointerdown already fired because unlockAndStart is idempotent.
+tsEl.addEventListener('click', unlockAndStart);
 
 // ── Main loop ──
 function loop(ts) {
