@@ -100,11 +100,16 @@ function updateNpcTube(geo, radii, height, x, y, sway) {
   geo.computeVertexNormals();
 }
 
+// Leg heights per type — longer legs for taller NPCs
+const NPC_LEG_HEIGHT = { shopper: 0.35, phone: 0.38, salesrep: 0.36 };
+const NPC_LEG_RADIUS = 0.04;   // thin enough to see daylight between legs
+const NPC_LEG_GAP = 0.10;      // lateral distance between legs (center to center)
+
 function buildNPC(type) {
   const g = new THREE.Group();
   const bodyMat = M.pick(NPC_BODY_POOLS[type] || NPC_BODY_POOLS.shopper);
 
-  // Main body tube
+  // Main body tube — starts above legs, not at ground
   const bodyGeo = makeNpcTubeGeo();
   const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
   bodyMesh.frustumCulled = false;
@@ -116,13 +121,22 @@ function buildNPC(type) {
   const head = new THREE.Mesh(new THREE.SphereGeometry(headSize, 5, 4), sk);
   g.add(head);
 
-  // Feet — two dark blocks at base
+  // ── Legs — two cylinders with visible gap, shoes at bottom ──
+  const legH = NPC_LEG_HEIGHT[type] || 0.35;
+  const pantsMat = M.pick(M.pantsPool);
   const sho = M.pick(M.shoePool);
-  for (const s of [-0.08, 0.08]) {
-    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.05, 0.16), sho);
-    foot.position.set(s, 0.025, 0.02);
-    g.add(foot);
-  }
+  const legL = new THREE.Mesh(new THREE.CylinderGeometry(NPC_LEG_RADIUS, NPC_LEG_RADIUS * 0.9, legH, 5), pantsMat);
+  const legR = new THREE.Mesh(new THREE.CylinderGeometry(NPC_LEG_RADIUS, NPC_LEG_RADIUS * 0.9, legH, 5), pantsMat);
+  legL.position.set(-NPC_LEG_GAP, legH / 2, 0);
+  legR.position.set( NPC_LEG_GAP, legH / 2, 0);
+  g.add(legL, legR);
+
+  // Shoes — dark blocks at the bottom of each leg
+  const shoeL = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.05, 0.16), sho);
+  const shoeR = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.05, 0.16), sho);
+  shoeL.position.set(-NPC_LEG_GAP, 0.025, 0.02);
+  shoeR.position.set( NPC_LEG_GAP, 0.025, 0.02);
+  g.add(shoeL, shoeR);
 
   g.userData = {
     type, passed: false,
@@ -132,32 +146,66 @@ function buildNPC(type) {
     bodyGeo,                               // ref for per-frame tube update
     radii: NPC_RADII[type] || K.NPC_RADII_SHOPPER,
     height: NPC_HEIGHTS[type] || 1.1,
+    legH,
     driftPhase: Math.random() * 6.28,      // for phone zombie drift
     headMesh: head,
+    legL, legR, shoeL, shoeR,              // refs for leg animation
   };
   const prof = ACOUSTIC_PROFILE[type] || ACOUSTIC_PROFILE.shopper;
   g.userData.absorb = prof.absorb;
   g.userData.spread = prof.spread;
 
-  // Type-specific accessories
-  if (type === 'shopper' && Math.random() > 0.4) {
-    const bg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, 0.08), M.pick(M.bagPool));
-    bg.position.set(0.28, 0.5, 0);
+  // ── Type-specific accessories ──
+  const bodyBase = legH * 0.8;   // Y offset where body tube starts
+
+  // Shopper: bags that widen the silhouette
+  if (type === 'shopper' && Math.random() > 0.3) {
+    const bagMat = M.pick(M.bagPool);
+    const bg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.22, 0.08), bagMat);
+    bg.position.set(0.28, 0.55 + bodyBase, 0);
     g.add(bg);
     g.userData.hasBag = true;
     g.userData.spread = 0.7;
-  }
-  if (type === 'salesrep') {
-    g.userData.leanDir = Math.random() > 0.5 ? 1 : -1;
-  }
-  if (type === 'phone') {
-    const ph = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.08, 0.015), M.catPupil);
-    ph.position.set(0.12, 0.75, 0.08);
-    g.add(ph);
+    // Second bag on opposite side for some shoppers
+    if (Math.random() > 0.5) {
+      const bg2 = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.18, 0.07), M.pick(M.bagPool));
+      bg2.position.set(-0.26, 0.50 + bodyBase, 0);
+      g.add(bg2);
+      g.userData.hasBag2 = true;
+    }
   }
 
-  // Initial tube shape
-  updateNpcTube(bodyGeo, g.userData.radii, g.userData.height, 0, 0, 0);
+  // Sales Rep: lean direction + yellow-ish vest accent
+  if (type === 'salesrep') {
+    g.userData.leanDir = Math.random() > 0.5 ? 1 : -1;
+    // Vest/badge accent — slightly brighter than body, signals "mall employee"
+    const vest = new THREE.Mesh(
+      new THREE.BoxGeometry(0.18, 0.25, 0.10),
+      new THREE.MeshLambertMaterial({ color: 0xb8a840 })  // dull gold vest
+    );
+    vest.position.set(0, 0.65 + bodyBase, 0.04);
+    g.add(vest);
+  }
+
+  // Phone Zombie: extended arm + phone, forward lean baked into body
+  if (type === 'phone') {
+    // Arm cylinder extending forward-down
+    const armMat = M.pick(M.shirtPool);
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.02, 0.25, 4), armMat);
+    arm.position.set(0.10, 0.70 + bodyBase, 0.12);
+    arm.rotation.x = -0.6;  // angled forward/down
+    arm.rotation.z = 0.3;
+    g.add(arm);
+    // Phone at end of arm
+    const ph = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.08, 0.015), M.catPupil);
+    ph.position.set(0.14, 0.60 + bodyBase, 0.20);
+    g.add(ph);
+    g.userData.phoneMesh = ph;
+    g.userData.armMesh = arm;
+  }
+
+  // Initial tube shape — body starts above leg height
+  updateNpcTube(bodyGeo, g.userData.radii, g.userData.height, 0, legH * 0.8, 0);
 
   return g;
 }
@@ -203,23 +251,56 @@ export function update(dt, beltSpeed, t, catHeadX, catStepZ, scene) {
     const npcStepY = findStepSurface(z);
     n.position.set(ud.lane, npcStepY, z);
 
-    // ── Per-frame tube body update — stiff sway ──
+    // ── Per-frame tube body update — starts above legs ──
     const sway = ud.type === 'salesrep'
       ? ud.leanDir * (0.06 + Math.sin(t * 1.5) * 0.02)   // forward lean
       : Math.sin(t * 1.2 + ud.swingPhase) * 0.02;         // subtle walk sway
-    updateNpcTube(ud.bodyGeo, ud.radii, ud.height, 0, 0, sway);
+    const bodyBase = ud.legH * 0.8;   // body tube bottom sits above legs
+    updateNpcTube(ud.bodyGeo, ud.radii, ud.height, 0, bodyBase, sway);
 
-    // Head tracks tube top
-    ud.headMesh.position.set(sway, ud.height + 0.06, 0);
+    // Head tracks tube top (body base + body height + small gap)
+    ud.headMesh.position.set(sway, bodyBase + ud.height + 0.06, 0);
 
-    // Bag swing animation
+    // ── Leg sway — simple back-and-forth synced to belt ──
+    const legSwing = Math.sin(t * 3.0 + ud.swingPhase) * 0.15;
+    const legH = ud.legH;
+    // Left leg swings forward, right swings back (opposite phase)
+    ud.legL.position.set(-NPC_LEG_GAP, legH / 2, legSwing * 0.08);
+    ud.legR.position.set( NPC_LEG_GAP, legH / 2, -legSwing * 0.08);
+    ud.legL.rotation.x = legSwing;
+    ud.legR.rotation.x = -legSwing;
+    // Shoes track leg bottoms
+    ud.shoeL.position.set(-NPC_LEG_GAP, 0.025, legSwing * 0.12 + 0.02);
+    ud.shoeR.position.set( NPC_LEG_GAP, 0.025, -legSwing * 0.12 + 0.02);
+
+    // ── Bag swing animation ──
     if (ud.hasBag) {
-      // Bag is the last child before shoes/phone — find it
+      const bagSwing = Math.sin(t * 2 + ud.swingPhase) * 0.06;
+      // Find bag meshes by their X offset (bags sit at ±0.26..0.28)
       for (const child of n.children) {
         if (child.geometry && child.geometry.type === 'BoxGeometry'
-            && child.position.x > 0.2) {
-          child.position.x = 0.28 + Math.sin(t * 2 + ud.swingPhase) * 0.06;
-          break;
+            && Math.abs(child.position.x) > 0.2 && child.position.y > 0.4) {
+          const side = child.position.x > 0 ? 1 : -1;
+          child.position.x = side * (0.27 + Math.abs(bagSwing));
+          child.position.y = 0.55 + bodyBase;  // bags ride with body
+        }
+      }
+    }
+
+    // ── Phone zombie: arm + phone bob ──
+    if (ud.type === 'phone' && ud.armMesh) {
+      const phoneBob = Math.sin(t * 2.5 + ud.driftPhase) * 0.02;
+      ud.armMesh.position.y = 0.70 + bodyBase + phoneBob;
+      ud.phoneMesh.position.y = 0.60 + bodyBase + phoneBob;
+    }
+
+    // ── Sales rep vest rides with body ──
+    if (ud.type === 'salesrep') {
+      for (const child of n.children) {
+        if (child.geometry && child.geometry.type === 'BoxGeometry'
+            && child.position.y > 0.5 && child.position.z > 0.03) {
+          child.position.y = 0.65 + bodyBase;
+          child.position.x = sway * 0.5;  // vest leans with body
         }
       }
     }

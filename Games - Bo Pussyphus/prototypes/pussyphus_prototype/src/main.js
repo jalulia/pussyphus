@@ -170,7 +170,7 @@ function loop(ts) {
   catTail.update(dt, cat.smoothX, flow);
 
   // Cat animation
-  catAnim.animate(t, npcResult.nearestDist, npcResult.nearestDir);
+  catAnim.animate(t, dt, beltSpeed, npcResult.nearestDist, npcResult.nearestDir);
 
   // Camera
   sceneSetup.updateCamera(cat.headX, cat.groundY, cat.stepZ, flow);

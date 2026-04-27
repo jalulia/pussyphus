@@ -156,13 +156,25 @@ export function init(scene) {
     }
   }
 
-  // Legs — long, fine-boned Cornish Rex with dark paws (seal points)
+  // Legs — procedural Cornish Rex stilts: upper + lower + paw per leg
+  // catLegs layout: [upperMesh, lowerMesh, pawMesh] × 4 legs = 12 entries
+  // Leg order: 0=FL, 1=FR, 2=BL, 3=BR
   for (let i = 0; i < 4; i++) {
-    const l = new THREE.Mesh(new THREE.CylinderGeometry(0.010, 0.007, 0.08, 4), M.catBody);
-    catGroup.add(l);
-    catLegs.push(l);
-    const pw = new THREE.Mesh(new THREE.SphereGeometry(0.010, 4, 3), M.catPoint);
-    pw.scale.set(1.1, 0.4, 1.2);
+    const upper = new THREE.Mesh(
+      new THREE.CylinderGeometry(K.LEG_RADIUS_TOP, K.LEG_RADIUS_BOT, K.LEG_UPPER_LEN, 4),
+      M.catBody);
+    catGroup.add(upper);
+    catLegs.push(upper);
+
+    const lower = new THREE.Mesh(
+      new THREE.CylinderGeometry(K.LEG_RADIUS_BOT, K.LEG_RADIUS_BOT * 0.7, K.LEG_LOWER_LEN, 4),
+      M.catBody);
+    catGroup.add(lower);
+    catLegs.push(lower);
+
+    const pw = new THREE.Mesh(
+      new THREE.SphereGeometry(K.PAW_RADIUS, 4, 3), M.catPoint);
+    pw.scale.set(1.1, 0.35, 1.3);  // oval, flat, slightly long
     catGroup.add(pw);
     catLegs.push(pw);
   }

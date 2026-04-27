@@ -51,6 +51,25 @@ export const BODY_RADII = [0.003, 0.020, 0.034, 0.040, 0.015, 0.013, 0.030, 0.04
 export const TAIL_SEGMENTS = 12;
 export const TUBE_CROSS_SEGS = 6;      // hexagonal cross-section
 
+// Cat walk cycle — procedural quadruped gait
+// Leg geometry
+export const LEG_UPPER_LEN = 0.045;    // shoulder/hip to knee/elbow
+export const LEG_LOWER_LEN = 0.045;    // knee/elbow to paw
+export const LEG_RADIUS_TOP = 0.009;   // thigh/upper arm width
+export const LEG_RADIUS_BOT = 0.006;   // shin/forearm width (tapers)
+export const PAW_RADIUS = 0.009;       // oval paw
+// Stride parameters (interpolated by flow)
+export const STRIDE_LEN_STIFF = 0.035; // short careful strides at zero flow
+export const STRIDE_LEN_LOOSE = 0.06;  // long fluid strides at max flow
+export const STEP_HEIGHT_STIFF = 0.018;// low careful lift at zero flow
+export const STEP_HEIGHT_LOOSE = 0.032;// bouncy high lift at max flow
+export const STEP_SPEED = 12;          // how fast the paw swings to its target
+// Stance offsets from body anchors
+export const FRONT_STANCE_X = 0.026;   // lateral offset from spine
+export const BACK_STANCE_X = 0.028;
+export const FRONT_STANCE_Z = 0.015;   // forward offset from head
+export const BACK_STANCE_Z = 0.005;    // back from butt
+
 // Tail state machine — emotional telemetry
 export const TAIL_MOVING_THRESHOLD = 0.08;
 export const TAIL_STATE_BLEND_S = 0.15;
