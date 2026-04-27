@@ -41,12 +41,16 @@ export const catNose     = new THREE.MeshBasicMaterial({ color: 0x3a2828 });
 export const catEar      = new THREE.MeshLambertMaterial({ color: 0x3a3030 });
 export const catWhisker  = new THREE.LineBasicMaterial({ color: 0xa09888 });
 
-// ── NPC pools ──
+// ── NPC pools — cool palette (grays, slate, khaki) to contrast Bo's warm cream ──
 export const skinPool  = [0xd8b898, 0xc8a078, 0xa07850, 0x785838].map(c => new THREE.MeshLambertMaterial({ color: c }));
 export const shirtPool = [0x7888a0, 0xa07878, 0x78a078, 0xc8a868, 0x9878a0, 0xa09070, 0x6898a0, 0xc08888].map(c => new THREE.MeshLambertMaterial({ color: c }));
 export const pantsPool = [0x484868, 0x585848, 0x685848, 0x384858, 0x505068].map(c => new THREE.MeshLambertMaterial({ color: c }));
 export const shoePool  = [0x2a2428, 0x3a3230, 0x282830].map(c => new THREE.MeshLambertMaterial({ color: c }));
 export const bagPool   = [0xc87090, 0x48a8a0, 0xc8a848, 0xd4a0a8].map(c => new THREE.MeshLambertMaterial({ color: c }));
+// NPC tube body — cool tones that read as "mass" through dither, contrast with warm Bo
+export const npcBodyShopper  = [0x808890, 0x8a8a82, 0x989080, 0x787878].map(c => new THREE.MeshLambertMaterial({ color: c }));  // grays + khaki
+export const npcBodyPhone    = [0x606878, 0x707880, 0x585868, 0x687078].map(c => new THREE.MeshLambertMaterial({ color: c }));  // slate
+export const npcBodySalesRep = [0x585050, 0x484048, 0x504850, 0x403840].map(c => new THREE.MeshLambertMaterial({ color: c }));  // dark charcoal
 
 /** Pick a random element from a material pool */
 export function pick(pool) { return pool[Math.floor(Math.random() * pool.length)]; }

@@ -62,9 +62,10 @@ export function animate(t, nearestDist, nearestDir) {
     _tailPts[i].x = cat.tailX[i] + _tailOff.dx;
     _tailPts[i].z = cat.tailZ[i] + _tailOff.dz;
     _tailPts[i].y = buttY + 0.01 + i * 0.006 + _tailOff.dy;
-    const base = 0.020;
-    const taper = 1 - prog * prog;
-    _tailRad[i] = base * taper + 0.002;
+    // Whip taper — sharp Cornish Rex tail: cubic falloff + extra pinch at tip
+    const base = 0.018;
+    const taper = (1 - prog) * (1 - prog) * (1 - prog);   // cubic = whip
+    _tailRad[i] = base * taper + 0.0012;
   }
   updateTube(tailGeo, _tailPts, _tailRad);
 
@@ -81,12 +82,12 @@ export function animate(t, nearestDist, nearestDir) {
   // ═══ Face ═══
   const headX = cat.headX, headZ = cat.headZ;
 
-  // Ears — base sits on head, tapers upward; proximity-aware rotation
-  const earY = headY + 0.018;
-  catEarL.position.set(headX - 0.032, earY, headZ);
-  catEarR.position.set(headX + 0.032, earY, headZ);
-  catEarLIn.position.set(headX - 0.032, earY + 0.004, headZ - 0.001);
-  catEarRIn.position.set(headX + 0.032, earY + 0.004, headZ - 0.001);
+  // Ears — oversized Cornish Rex, wider spacing for 1.75x scale
+  const earY = headY + 0.016;
+  catEarL.position.set(headX - 0.038, earY, headZ);
+  catEarR.position.set(headX + 0.038, earY, headZ);
+  catEarLIn.position.set(headX - 0.038, earY + 0.006, headZ - 0.001);
+  catEarRIn.position.set(headX + 0.038, earY + 0.006, headZ - 0.001);
 
   const earAlert = Math.max(0, 1 - nearestDist / 1.5);
   const earRotBase = 0.04 + earAlert * 0.35;
@@ -102,25 +103,27 @@ export function animate(t, nearestDist, nearestDir) {
     }
   });
 
-  // Nose + mask
-  catNose.position.set(headX, headY - 0.012, headZ - 0.055);
-  catMask.position.set(headX, headY - 0.005, headZ - 0.03);
-  catMask.scale.set(0.7, 0.6, 0.7);
+  // Nose + mask — egg-shaped head with Roman nose hint
+  catNose.position.set(headX, headY - 0.016, headZ - 0.06);
+  catMask.position.set(headX, headY - 0.003, headZ - 0.03);
+  catMask.scale.set(0.62, 0.7, 0.8);   // narrow + tall + deep = egg shape
 
   // Whiskers
   catGroup.traverse(c => {
     if (c.userData && c.userData.whisk) c.position.set(headX, headY - 0.006, headZ - 0.04);
   });
 
-  // ═══ Legs ═══
+  // ═══ Legs — long Cornish Rex stilts ═══
   const wt = t * (3 + Math.abs(headX - cat.buttX) * 30);
   const w = Math.sin(wt);
-  catLegs[0].position.set(headX - 0.03, frontFloor + 0.04, headZ + 0.02); catLegs[0].rotation.x = w * 0.3;
-  catLegs[1].position.set(headX - 0.03, frontFloor + 0.012, headZ + 0.02);
-  catLegs[2].position.set(headX + 0.03, frontFloor + 0.04, headZ + 0.02); catLegs[2].rotation.x = -w * 0.3;
-  catLegs[3].position.set(headX + 0.03, frontFloor + 0.012, headZ + 0.02);
-  catLegs[4].position.set(cat.buttX - 0.03, backFloor + 0.035, cat.buttZ); catLegs[4].rotation.x = -w * 0.3;
-  catLegs[5].position.set(cat.buttX - 0.03, backFloor + 0.012, cat.buttZ);
-  catLegs[6].position.set(cat.buttX + 0.03, backFloor + 0.035, cat.buttZ); catLegs[6].rotation.x = w * 0.3;
-  catLegs[7].position.set(cat.buttX + 0.03, backFloor + 0.012, cat.buttZ);
+  // Front legs — cylinder center raised for 0.08 height
+  catLegs[0].position.set(headX - 0.028, frontFloor + 0.05, headZ + 0.02); catLegs[0].rotation.x = w * 0.3;
+  catLegs[1].position.set(headX - 0.028, frontFloor + 0.008, headZ + 0.02);
+  catLegs[2].position.set(headX + 0.028, frontFloor + 0.05, headZ + 0.02); catLegs[2].rotation.x = -w * 0.3;
+  catLegs[3].position.set(headX + 0.028, frontFloor + 0.008, headZ + 0.02);
+  // Back legs — slightly wider stance
+  catLegs[4].position.set(cat.buttX - 0.03, backFloor + 0.048, cat.buttZ); catLegs[4].rotation.x = -w * 0.3;
+  catLegs[5].position.set(cat.buttX - 0.03, backFloor + 0.008, cat.buttZ);
+  catLegs[6].position.set(cat.buttX + 0.03, backFloor + 0.048, cat.buttZ); catLegs[6].rotation.x = w * 0.3;
+  catLegs[7].position.set(cat.buttX + 0.03, backFloor + 0.008, cat.buttZ);
 }

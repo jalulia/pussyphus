@@ -19,8 +19,18 @@ export let stepYVal = 0;
 export let groundY = 0;      // front (head) step surface
 export let backGroundY = 0;   // back (butt) step surface
 
-export function updateSpringChain(dt, inputX, stepTarget, frontStepY, backStepY) {
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+export function updateSpringChain(dt, inputX, stepTarget, frontStepY, backStepY, flow) {
   const maxX = K.ESC_WIDTH / 2 - K.CAT_MAX_X_MARGIN;
+
+  // Flow-based spring interpolation: 0 = stiff/deliberate, 1 = loose/fluid
+  const flowT = Math.min(flow / K.FLOW_MAX, 1);
+  const sHead    = lerp(K.SPRING_HEAD_STIFF,      K.SPRING_HEAD_LOOSE,      flowT);
+  const sBody    = lerp(K.SPRING_BODY_STIFF,      K.SPRING_BODY_LOOSE,      flowT);
+  const sButt    = lerp(K.SPRING_BUTT_STIFF,      K.SPRING_BUTT_LOOSE,      flowT);
+  const sTailB   = lerp(K.SPRING_TAIL_BASE_STIFF,  K.SPRING_TAIL_BASE_LOOSE, flowT);
+  const sTailD   = lerp(K.SPRING_TAIL_DECAY_STIFF, K.SPRING_TAIL_DECAY_LOOSE, flowT);
 
   // Smooth lateral input
   smoothX += (inputX - smoothX) * K.CAT_LATERAL_SMOOTH * dt;
@@ -36,21 +46,21 @@ export function updateSpringChain(dt, inputX, stepTarget, frontStepY, backStepY)
   groundY += (frontStepY - groundY) * K.GROUND_TRACK_SPEED * dt;
   backGroundY += (backStepY - backGroundY) * K.GROUND_TRACK_SPEED * dt;
 
-  // Spring chain: head → body → butt → tail
+  // Spring chain: head → body → butt → tail (flow-interpolated)
   const targetHeadX = smoothX * maxX;
-  headX += (targetHeadX - headX) * K.SPRING_HEAD * dt;
+  headX += (targetHeadX - headX) * sHead * dt;
   headZ = stepZ;
 
-  bodyX += (headX - bodyX) * K.SPRING_BODY * dt;
-  bodyZ += (headZ + 0.055 - bodyZ) * K.SPRING_BODY * dt;
+  bodyX += (headX - bodyX) * sBody * dt;
+  bodyZ += (headZ + 0.055 - bodyZ) * sBody * dt;
 
-  buttX += (bodyX - buttX) * K.SPRING_BUTT * dt;
-  buttZ += (bodyZ + 0.045 - buttZ) * K.SPRING_BUTT * dt;
+  buttX += (bodyX - buttX) * sButt * dt;
+  buttZ += (bodyZ + 0.045 - buttZ) * sButt * dt;
 
-  // Tail chain
+  // Tail chain — also flow-interpolated
   let prevX = buttX, prevZ = buttZ + 0.01;
   for (let i = 0; i < K.TAIL_SEGMENTS; i++) {
-    const spring = K.SPRING_TAIL_BASE - i * K.SPRING_TAIL_DECAY;
+    const spring = sTailB - i * sTailD;
     tailX[i] += (prevX - tailX[i]) * spring * dt;
     tailZ[i] += (prevZ + 0.012 - tailZ[i]) * spring * dt;
     prevX = tailX[i];

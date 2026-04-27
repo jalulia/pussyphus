@@ -158,11 +158,11 @@ function loop(ts) {
   if (state === 'play') {
     const frontStepY = escalator.findStepSurface(cat.headZ);
     const backStepY  = escalator.findStepSurface(cat.buttZ);
-    cat.updateSpringChain(dt, input.input.lateralTarget, input.input.stepTarget, frontStepY, backStepY);
+    cat.updateSpringChain(dt, input.input.lateralTarget, input.input.stepTarget, frontStepY, backStepY, flow);
   }
 
   // Tail state machine — drives target offsets the spring chain resolves.
-  catTail.update(dt, cat.smoothX);
+  catTail.update(dt, cat.smoothX, flow);
 
   // Cat animation
   catAnim.animate(t, npcResult.nearestDist, npcResult.nearestDir);

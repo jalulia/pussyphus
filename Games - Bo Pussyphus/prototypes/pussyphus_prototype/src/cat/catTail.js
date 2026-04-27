@@ -27,7 +27,10 @@ export function impact(dirX) {
   impactT = K.TAIL_IMPACT_DECAY_S;
 }
 
-export function update(dt, smoothX) {
+let flowT = 0;   // cached flow interpolant 0..1
+
+export function update(dt, smoothX, flow) {
+  flowT = Math.min((flow || 0) / K.FLOW_MAX, 1);
   const target = Math.abs(smoothX) > K.TAIL_MOVING_THRESHOLD ? STATE_MOVING : STATE_IDLE;
   if (target !== state) {
     prevState = state;
@@ -62,7 +65,7 @@ function stateOffsets(s, prog, t, out) {
 const _a = { dx: 0, dy: 0, dz: 0 };
 const _b = { dx: 0, dy: 0, dz: 0 };
 
-// Writes blended state offset + decaying impact impulse into `out`.
+// Writes blended state offset + flow posture + decaying impact impulse into `out`.
 export function offset(prog, t, out) {
   stateOffsets(state, prog, t, _a);
   if (blendT < 1) {
@@ -74,6 +77,15 @@ export function offset(prog, t, out) {
   } else {
     out.dx = _a.dx; out.dy = _a.dy; out.dz = _a.dz;
   }
+
+  // Flow posture — lowered+still at 0, raised+S-curve at max
+  // Raise: tail lifts progressively toward tip
+  out.dy += flowT * K.TAIL_FLOW_RAISE * prog;
+  // S-curve: gentle lateral sine that increases with flow
+  out.dx += flowT * K.TAIL_FLOW_SCURVE_AMP * Math.sin(prog * Math.PI * 2 + t * 0.8);
+  // Swish amplitude boost at high flow
+  out.dx *= 1 + flowT * (K.TAIL_FLOW_SWISH_BOOST - 1);
+
   if (impactT > 0) {
     out.dx += impactX * (1 - prog * 0.5);
     out.dy += -0.006 * (impactT / K.TAIL_IMPACT_DECAY_S);

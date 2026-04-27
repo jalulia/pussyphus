@@ -108,13 +108,14 @@ export function init(scene) {
   tailTipMesh.frustumCulled = false;
   catGroup.add(tailTipMesh);
 
-  // ── Ears — seal point, LARGE (Cornish Rex!) ──
+  // ── Ears — seal point, OVERSIZED (Cornish Rex!) ──
+  // 1.75x scale — the breed's most distinctive feature AND proximity feedback tool.
   // Base on head, taper upward. Origin translated to base so position=base attachment.
-  const EAR_H = 0.04, EAR_H_IN = 0.028;
-  const earGeoL   = new THREE.ConeGeometry(0.022, EAR_H,    4);
-  const earGeoR   = new THREE.ConeGeometry(0.022, EAR_H,    4);
-  const earGeoLIn = new THREE.ConeGeometry(0.013, EAR_H_IN, 4);
-  const earGeoRIn = new THREE.ConeGeometry(0.013, EAR_H_IN, 4);
+  const EAR_H = 0.07, EAR_H_IN = 0.049;
+  const earGeoL   = new THREE.ConeGeometry(0.036, EAR_H,    4);
+  const earGeoR   = new THREE.ConeGeometry(0.036, EAR_H,    4);
+  const earGeoLIn = new THREE.ConeGeometry(0.022, EAR_H_IN, 4);
+  const earGeoRIn = new THREE.ConeGeometry(0.022, EAR_H_IN, 4);
   earGeoL.translate(0,   EAR_H/2,    0);
   earGeoR.translate(0,   EAR_H/2,    0);
   earGeoLIn.translate(0, EAR_H_IN/2, 0);
@@ -155,12 +156,12 @@ export function init(scene) {
     }
   }
 
-  // Legs — cream with dark paws (seal points)
+  // Legs — long, fine-boned Cornish Rex with dark paws (seal points)
   for (let i = 0; i < 4; i++) {
-    const l = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.01, 0.05, 4), M.catBody);
+    const l = new THREE.Mesh(new THREE.CylinderGeometry(0.010, 0.007, 0.08, 4), M.catBody);
     catGroup.add(l);
     catLegs.push(l);
-    const pw = new THREE.Mesh(new THREE.SphereGeometry(0.013, 4, 3), M.catPoint);
+    const pw = new THREE.Mesh(new THREE.SphereGeometry(0.010, 4, 3), M.catPoint);
     pw.scale.set(1.1, 0.4, 1.2);
     catGroup.add(pw);
     catLegs.push(pw);

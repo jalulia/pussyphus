@@ -22,18 +22,32 @@ export const CAT_STEP_MIN = -2;
 export const CAT_STEP_MAX = 1;
 export const CAT_MAX_X_MARGIN = 0.1;   // distance from wall
 
-// Cat spring chain
-export const SPRING_HEAD = 12;
-export const SPRING_BODY = 10;
-export const SPRING_BUTT = 7;
-export const SPRING_TAIL_BASE = 5;
-export const SPRING_TAIL_DECAY = 0.25;
+// Cat spring chain — two regimes interpolated by flow
+// Zero flow: stiff, deliberate (Bo is 19 and careful)
+export const SPRING_HEAD_STIFF = 14;
+export const SPRING_BODY_STIFF = 12;
+export const SPRING_BUTT_STIFF = 9;
+export const SPRING_TAIL_BASE_STIFF = 6;
+export const SPRING_TAIL_DECAY_STIFF = 0.3;
+// Max flow: loose, elastic (Bo is the kitten she was at 2)
+export const SPRING_HEAD_LOOSE = 8;
+export const SPRING_BODY_LOOSE = 6;
+export const SPRING_BUTT_LOOSE = 4;
+export const SPRING_TAIL_BASE_LOOSE = 3.5;
+export const SPRING_TAIL_DECAY_LOOSE = 0.15;
+// Legacy aliases — used as defaults / fallback
+export const SPRING_HEAD = SPRING_HEAD_STIFF;
+export const SPRING_BODY = SPRING_BODY_STIFF;
+export const SPRING_BUTT = SPRING_BUTT_STIFF;
+export const SPRING_TAIL_BASE = SPRING_TAIL_BASE_STIFF;
+export const SPRING_TAIL_DECAY = SPRING_TAIL_DECAY_STIFF;
 export const GROUND_TRACK_SPEED = 35;
 
 // Cat body proportions — seal point Cornish Rex (Bo)
 // radii define silhouette: nose → butt (10 control points)
 export const BODY_SPINE_PTS = 10;
-export const BODY_RADII = [0.003, 0.022, 0.050, 0.042, 0.020, 0.032, 0.040, 0.038, 0.032, 0.018];
+// Cornish Rex silhouette: narrow shoulders → deep chest → dramatic waist tuck → rounded rump
+export const BODY_RADII = [0.003, 0.020, 0.034, 0.040, 0.015, 0.013, 0.030, 0.042, 0.038, 0.016];
 export const TAIL_SEGMENTS = 12;
 export const TUBE_CROSS_SEGS = 6;      // hexagonal cross-section
 
@@ -49,6 +63,11 @@ export const TAIL_MOVING_SWISH_AMP = 0.018;
 export const TAIL_MOVING_PERK_GAIN = 0.014; // Y rise at base
 export const TAIL_IMPACT_IMPULSE = 0.05;    // X displacement magnitude
 export const TAIL_IMPACT_DECAY_S = 0.8;
+// Flow-dependent tail posture
+// Low flow: tail lowered, still. High flow: raised with S-curve.
+export const TAIL_FLOW_RAISE = 0.025;       // max Y lift at full flow
+export const TAIL_FLOW_SCURVE_AMP = 0.015;  // lateral S-curve amplitude at full flow
+export const TAIL_FLOW_SWISH_BOOST = 1.8;   // swish amplitude multiplier at full flow
 
 // Flow state
 export const FLOW_DECAY_RATE = 0.18;
@@ -60,6 +79,20 @@ export const FLOW_HIT_LOSS = 1.0;
 export const NPC_SPAWN_RATE = 1.6;     // spawns per sec (probability)
 export const NPC_HIT_RADIUS_X = 0.22;
 export const NPC_HIT_RADIUS_Z = 0.25;
+// NPC tube geometry — spine points and type-specific radii
+export const NPC_SPINE_PTS = 8;        // feet → head
+export const NPC_TUBE_CROSS_SEGS = 5;  // pentagonal cross-section (cheaper than cat's hex)
+// Type radii: feet → head (8 points). Wider = more imposing silhouette.
+export const NPC_RADII_SHOPPER  = [0.08, 0.09, 0.14, 0.20, 0.22, 0.18, 0.14, 0.10];
+export const NPC_RADII_PHONE    = [0.06, 0.07, 0.10, 0.12, 0.13, 0.11, 0.10, 0.09];
+export const NPC_RADII_SALESREP = [0.07, 0.08, 0.11, 0.14, 0.16, 0.13, 0.11, 0.10];
+// NPC springs — always stiffer than Bo at any flow level (NPCs are rigid)
+export const NPC_SPRING_SWAY = 2;      // lateral sway spring (vs Bo's 4-14)
+// Phone zombie drift
+export const NPC_PHONE_DRIFT_SPEED = 0.3;
+export const NPC_PHONE_DRIFT_FREQ = 0.4;
+// Sales rep approach
+export const NPC_SALES_APPROACH_SPEED = 0.5;
 
 // Render
 export const RENDER_W = 480;
