@@ -58,8 +58,8 @@ export const LEG_LOWER_LEN = 0.048;    // knee/elbow to paw
 export const LEG_RADIUS_TOP = 0.016;   // thigh/upper arm width (visible through dither)
 export const LEG_RADIUS_BOT = 0.011;   // shin/forearm width (tapers)
 export const PAW_RADIUS = 0.014;       // oval paw
-// Gait timing
-export const WALK_RATE = 10;           // phase rate per unit belt speed (~2.5 Hz at base speed)
+// Gait timing — driven by relative speed over escalator, not wall clock
+export const WALK_RATE = 10;           // phase rate per unit relative speed
 // Stride parameters (interpolated by flow)
 export const STRIDE_AMP_STIFF = 0.020; // short careful strides at zero flow
 export const STRIDE_AMP_LOOSE = 0.035; // long fluid strides at max flow
@@ -67,11 +67,48 @@ export const STEP_HEIGHT_STIFF = 0.010;// low careful lift at zero flow
 export const STEP_HEIGHT_LOOSE = 0.020;// bouncy high lift at max flow
 export const PAW_SMOOTH = 15;          // how fast the paw eases to its target
 export const PAW_GROUND_SNAP = 20;     // how fast planted paw snaps to floor
+// Front vs rear paw differentiation
+export const FRONT_PAW_CONTACT = 0.30; // fraction of cycle paw is planted (short tap)
+export const REAR_PAW_CONTACT = 0.55;  // fraction of cycle paw is planted (long push)
+export const REAR_PUSH_STRIDE = 1.3;   // rear stride multiplier (longer pushing stroke)
 // Stance offsets from body anchors
 export const FRONT_STANCE_X = 0.026;   // lateral offset from spine
 export const BACK_STANCE_X = 0.028;
 export const FRONT_STANCE_Z = 0.015;   // forward offset from head
 export const BACK_STANCE_Z = 0.005;    // back from butt
+
+// ── Gait-driven body compression/extension ──
+export const GAIT_SHOULDER_DIP = 0.006;    // shoulder drops on front plant
+export const GAIT_HIP_LIFT = 0.005;        // hip rises during rear push
+export const GAIT_SPINE_STRETCH = 0.003;   // spine lengthens on push phase
+export const GAIT_SPINE_COMPRESS = 0.003;  // spine shortens on plant phase
+export const GAIT_HEAD_COUNTER = 0.001;    // tiny counter-motion on head (dampened)
+export const GAIT_HEAD_SMOOTH = 0.12;      // how quickly head settles (low = stable)
+
+// ── Spine arch — Cornish Rex minimum curvature ──
+export const MIN_SPINE_ARCH = 0.004;       // never flatten below this arch
+
+// ── Micro-slips (low-flow paw drift) ──
+export const SLIP_PAW_AMOUNT = 0.003;      // max backward slip per paw plant
+export const SLIP_BODY_FRACTION = 0.35;    // how much body follows paw slip
+export const SLIP_DECAY = 8;               // how fast slip recovers per second
+
+// ── Lateral body-chain threading ──
+export const LATERAL_HEAD_YAW = 0.25;      // head turns toward intent
+export const LATERAL_SHOULDER_YAW = 0.18;  // shoulder follows
+export const LATERAL_HIP_DELAY_MS = 120;   // hip lags behind shoulder (ms)
+export const LATERAL_HIP_YAW = 0.12;       // hip yaw factor
+export const LATERAL_TAIL_YAW = -0.35;     // tail counters
+
+// ── Locomotion states ──
+export const LOCO_CAREFUL_MAX = 0.3;       // flow threshold: careful climb
+export const LOCO_FLOW_MIN = 0.5;          // flow threshold: flow climb begins
+export const LOCO_FLOW_FULL = 0.8;         // flow climb fully realized
+export const LOCO_CADENCE_JITTER = 0.08;   // ±8% timing variance per step (careful)
+export const LOCO_COMPOSURE_BREAK_MS = 400;// composure break duration
+export const LOCO_RECOMPOSE_MS = 1500;     // time to recompose after break
+export const LOCO_BREAK_SLIP_BURST = 0.008;// backward slip burst on composure break
+export const LOCO_BREAK_COMPRESS = 0.008;  // body compression on break
 
 // Tail state machine — emotional telemetry
 export const TAIL_MOVING_THRESHOLD = 0.08;

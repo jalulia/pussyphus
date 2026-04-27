@@ -136,7 +136,8 @@ function loop(ts) {
       flow = Math.max(0, flow - npcResult.hit * K.FLOW_HIT_LOSS);
       // Tail flicks away from the nearest collider.
       catTail.impact(-(npcResult.nearestDir || 1));
-      // TODO: extract bump direction from NPC collision data
+      // Signal locomotion state machine — triggers composure break
+      cat.signalNpcHit();
     }
 
     // Fragment triggers — fire on integer flow crossings at or above 5.
@@ -163,7 +164,7 @@ function loop(ts) {
   if (state === 'play') {
     const frontStepY = escalator.findStepSurface(cat.headZ);
     const backStepY  = escalator.findStepSurface(cat.buttZ);
-    cat.updateSpringChain(dt, input.input.lateralTarget, input.input.stepTarget, frontStepY, backStepY, flow);
+    cat.updateSpringChain(dt, input.input.lateralTarget, input.input.stepTarget, frontStepY, backStepY, flow, beltSpeed);
   }
 
   // Tail state machine — drives target offsets the spring chain resolves.
