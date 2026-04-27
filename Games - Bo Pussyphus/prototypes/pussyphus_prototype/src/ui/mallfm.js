@@ -11,6 +11,7 @@ import * as K from '../constants.js';
 import * as mixer from '../audio/mixer.js';
 import * as music from '../audio/music.js';
 import * as shepard from '../audio/shepard.js';
+import * as foley from '../audio/foley.js';
 import * as Tone from 'tone';
 
 const CSS = `
@@ -203,6 +204,9 @@ function buildPanelHTML() {
 
     <div class="mf-section">
       <h4>Foley</h4>
+      ${rangeRow('mf-clatter', 'CLATTER', 0, 3, 0.05, 1)}
+      ${rangeRow('mf-paw',     'PAW',     0, 3, 0.05, 1)}
+      ${rangeRow('mf-fluor',   'FLUOR',   0, 3, 0.05, 1)}
       <div class="mf-btnrow" id="mf-foley-btns">
         ${FOLEY_TYPES.map(t => `<button data-foley="${t}">${t}</button>`).join('')}
       </div>
@@ -253,6 +257,11 @@ function wireControls() {
   // Shepard
   bindRange('mf-shep-lvl', v => shepard.setLevel(v));
   bindRange('mf-shep-per', v => shepard.setPeriod(v));
+
+  // Foley layer gains
+  bindRange('mf-clatter', v => foley.setClatterGain(v));
+  bindRange('mf-paw',     v => foley.setPawGain(v));
+  bindRange('mf-fluor',   v => foley.setFluorGain(v));
 
   // Room
   bindRange('mf-rev', v => mixer.labSetReverbWet(v));

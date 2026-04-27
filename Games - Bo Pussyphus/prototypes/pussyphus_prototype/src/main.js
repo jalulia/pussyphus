@@ -19,6 +19,7 @@ import * as mixer from './audio/mixer.js';
 import * as music from './audio/music.js';
 import * as crowd from './audio/crowd.js';
 import * as shepard from './audio/shepard.js';
+import * as foley from './audio/foley.js';
 
 // ── Game state ──
 let state = 'title';  // 'title' | 'play'
@@ -55,6 +56,7 @@ function start() {
   cat.reset();
   catTail.reset();
   input.reset();
+  foley.reset();
   npcs.reset(sceneSetup.scene);
 }
 
@@ -75,6 +77,7 @@ async function unlockAndStart() {
       // Shepard routes directly to master (bypasses crowd filter + reverb).
       // Level starts at 0 — the MALL FM panel's LEVEL slider bleeds it in.
       shepard.init(mixer.getMasterBus());
+      foley.init(mixer.getFoleyBus(), mixer.getMasterBus());
       // MALL FM panel — the audition surface. Stands up a bottom tab that
       // expands into the lab. Safe to init after audio so every control
       // finds a live bus on first interaction.
@@ -149,6 +152,8 @@ function loop(ts) {
   crowd.update(dt, npcs.npcs, cat.headX, cat.stepZ, flow);
   // Shepard advances phase every frame; setLevel(0) keeps it silent by default.
   shepard.update(dt);
+  // Foley — clatter scheduling, driven by belt speed and flow.
+  foley.update(dt, flow / K.FLOW_MAX, beltSpeed);
 
   // Update environment
   environment.update();

@@ -143,6 +143,29 @@ export const FOLEY_MASTER_GAIN = 0.15;
 export const FOLEY_PROX_RANGE = 1.2;
 export const FOLEY_PAN_SCALE = 0.8;
 
+// ── Audio — foley: step clatter ──
+export const CLATTER_DURATION = 0.020;        // seconds (20ms noise burst)
+export const CLATTER_FILTER_FREQ = 3000;      // Hz — bandpass center
+export const CLATTER_FILTER_Q = 2.5;
+export const CLATTER_GAIN = 0.12;
+export const CLATTER_JITTER_MAX = 0.15;       // ±15% timing jitter at zero flow
+export const CLATTER_STEP_LENGTH = 0.4;       // meters — escalator step depth
+export const CLATTER_SCHEDULE_AHEAD = 0.05;   // seconds — look-ahead window
+
+// ── Audio — foley: paw steps (Bo) ──
+export const PAW_DURATION = 0.008;            // seconds (8ms — lighter than clatter)
+export const PAW_FILTER_FREQ = 1500;          // Hz — bandpass center
+export const PAW_FILTER_Q = 3.0;
+export const PAW_GAIN = 0.10;
+export const PAW_JITTER_MAX = 0.12;           // timing irregularity at zero flow
+export const PAW_SCHEDULE_AHEAD = 0.05;       // seconds
+
+// ── Audio — foley: fluorescent hum ──
+export const FLUOR_FREQ = 60;                 // Hz — mains fundamental
+export const FLUOR_GAIN_60 = 0.015;
+export const FLUOR_GAIN_120 = 0.008;
+export const FLUOR_GAIN_180 = 0.004;
+
 // ── Audio — escalator drone ──
 export const DRONE_FREQ_A = 55;
 export const DRONE_FREQ_B = 58;

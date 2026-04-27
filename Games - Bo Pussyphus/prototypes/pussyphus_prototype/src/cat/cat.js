@@ -13,6 +13,10 @@ export const tailZ = new Float32Array(K.TAIL_SEGMENTS);
 // Smoothed input
 export let smoothX = 0;
 
+// Normalized flow (0–1), updated each frame by updateSpringChain
+let _flow01 = 0;
+export function getFlow01() { return _flow01; }
+
 // Step tracking
 export let stepZ = 0;
 export let stepYVal = 0;
@@ -26,6 +30,7 @@ export function updateSpringChain(dt, inputX, stepTarget, frontStepY, backStepY,
 
   // Flow-based spring interpolation: 0 = stiff/deliberate, 1 = loose/fluid
   const flowT = Math.min(flow / K.FLOW_MAX, 1);
+  _flow01 = flowT;
   const sHead    = lerp(K.SPRING_HEAD_STIFF,      K.SPRING_HEAD_LOOSE,      flowT);
   const sBody    = lerp(K.SPRING_BODY_STIFF,      K.SPRING_BODY_LOOSE,      flowT);
   const sButt    = lerp(K.SPRING_BUTT_STIFF,      K.SPRING_BUTT_LOOSE,      flowT);

@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>pussyphus_audio_test.exe</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --win-bg: #c0c0c0;
+    --win-face: #c0c0c0;
+    --win-hilight: #ffffff;
+    --win-shadow: #808080;
+    --win-dark: #000000;
+    --win-title: #000080;
+    --win-title-text: #ffffff;
+    --cream: #d0c0a0;
+    --seal: #3a3030;
+    --teal: #70b8a0;
+    --mall-gray: #9a9a9a;
+  }
+
+  body {
+    background: #008080;
+    font-family: 'MS Sans Serif', 'Segoe UI', Tahoma, sans-serif;
+    font-size: 11px;
+    color: var(--win-dark);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  /* ── Win95 window chrome ── */
+  .window {
+    background: var(--win-face);
+    border: 2px solid;
+    border-color: var(--win-hilight) var(--win-dark) var(--win-dark) var(--win-hilight);
+    box-shadow: inset 1px 1px 0 var(--win-hilight), inset -1px -1px 0 var(--win-shadow);
+    width: 520px;
+  }
+
+  .title-bar {
+    background: var(--win-title);
+    color: var(--win-title-text);
+    padding: 2px 4px;
+    font-weight: bold;
+    font-size: 11px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+  }
+
+  .title-bar-buttons { display: flex; gap: 2px; }
+
+  .title-btn {
+    width: 16px; height: 14px;
+    background: var(--win-face);
+    border: 1px solid;
+    border-color: var(--win-hilight) var(--win-dark) var(--win-dark) var(--win-hilight);
+    font-size: 8px;
+    line-height: 12px;
+    text-align: center;
+    cursor: pointer;
+    color: var(--win-dark);
+  }
+
+  .client-area { padding: 8px; }
+
+  /* ── Sunken panel ── */
+  .panel {
+    border: 2px solid;
+    border-color: var(--win-shadow) var(--win-hilight) var(--win-hilight) var(--win-shadow);
+    background: #fff;
+    padding: 8px;
+    margin-bottom: 6px;
+  }
+
+  .panel-label {
+    font-weight: bold;
+    font-size: 11px;
+    margin-bottom: 4px;
+    color: var(--seal);
+  }
+
+  /* ── Start button ── */
+  .start-btn {
+    display: block;
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 8px;
+    background: var(--win-face);
+    border: 2px solid;
+    border-color: var(--win-hilight) var(--win-dark) var(--win-dark) var(--win-hilight);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    color: var(--win-dark);
+  }
+  .start-btn:active {
+    border-color: var(--win-dark) var(--win-hilight) var(--win-hilight) var(--win-dark);
+  }
+  .start-btn.running {
+    background: var(--teal);
+    color: #fff;
+    border-color: var(--win-dark) var(--win-hilight) var(--win-hilight) var(--win-dark);
+  }
+
+  /* ── Sliders ── */
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 4px 0;
+  }
+  .slider-row label {
+    width: 120px;
+    text-align: right;
+    flex-shrink: 0;
+    font-size: 10px;
+  }
+  .slider-row input[type="range"] {
+    flex: 1;
+    height: 14px;
+    cursor: pointer;
+  }
+  .slider-row .val {
+    width: 48px;
+    text-align: left;
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    color: var(--seal);
+  }
+
+  /* ── Paw step button ── */
+  .paw-btn {
+    background: var(--cream);
+    border: 2px solid;
+    border-color: var(--win-hilight) var(--seal) var(--seal) var(--win-hilight);
+    padding: 4px 12px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    margin-right: 6px;
+  }
+  .paw-btn:active {
+    border-color: var(--seal) var(--win-hilight) var(--win-hilight) var(--seal);
+  }
+
+  /* ── Status bar ── */
+  .status-bar {
+    border-top: 2px solid;
+    border-color: var(--win-shadow) var(--win-hilight);
+    padding: 2px 6px;
+    font-size: 10px;
+    color: var(--mall-gray);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* ── Flow meter ── */
+  .flow-track {
+    height: 16px;
+    background: #fff;
+    border: 2px solid;
+    border-color: var(--win-shadow) var(--win-hilight) var(--win-hilight) var(--win-shadow);
+    position: relative;
+    margin: 6px 0;
+  }
+  .flow-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--cream), var(--teal));
+    transition: width 0.15s;
+  }
+  .flow-label {
+    position: absolute;
+    right: 4px;
+    top: 1px;
+    font-size: 9px;
+    font-weight: bold;
+    color: var(--seal);
+    mix-blend-mode: multiply;
+  }
+
+  .mood-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 8px;
+    color: var(--mall-gray);
+    padding: 0 2px;
+  }
+
+  h3 { font-size: 11px; margin: 8px 0 4px; color: var(--win-title); }
+</style>
+</head>
+<body>
+
+<div class="window">
+  <div class="title-bar">
+    <span>pussyphus_audio_test.exe — Phase 1 Sound</span>
+    <div class="title-bar-buttons">
+      <div class="title-btn">_</div>
+      <div class="title-btn">□</div>
+      <div class="title-btn">×</div>
+    </div>
+  </div>
+
+  <div class="client-area">
+
+    <button class="start-btn" id="startBtn" onclick="startAudio()">
+      ▶ Click to Initialize AudioContext
+    </button>
+
+    <!-- Flow control -->
+    <div class="panel">
+      <div class="panel-label">flow state</div>
+      <div class="slider-row">
+        <label>flow (0–1):</label>
+        <input type="range" id="flowSlider" min="0" max="100" value="0" oninput="onFlow(this)">
+        <span class="val" id="flowVal">0.00</span>
+      </div>
+      <div class="flow-track">
+        <div class="flow-fill" id="flowFill" style="width:0%"></div>
+        <span class="flow-label" id="flowMood">INDIFFERENT</span>
+      </div>
+      <div class="mood-labels">
+        <span>INDIFFERENT</span>
+        <span>PIQUED</span>
+        <span>GLIDING</span>
+        <span>ASCENDANT</span>
+        <span>RETAIL-BLESSED</span>
+      </div>
+    </div>
+
+    <!-- Belt speed -->
+    <div class="panel">
+      <div class="panel-label">escalator</div>
+      <div class="slider-row">
+        <label>belt speed (m/s):</label>
+        <input type="range" id="beltSlider" min="10" max="200" value="50" oninput="onBelt(this)">
+        <span class="val" id="beltVal">0.50</span>
+      </div>
+      <div class="slider-row">
+        <label>step clatter BPM:</label>
+        <span class="val" id="bpmVal">75</span>
+        <span style="font-size:9px;color:var(--mall-gray)">(derived from belt speed ÷ 0.4m step)</span>
+      </div>
+    </div>
+
+    <!-- Master volume -->
+    <div class="panel">
+      <div class="panel-label">master</div>
+      <div class="slider-row">
+        <label>volume:</label>
+        <input type="range" id="volSlider" min="0" max="100" value="60" oninput="onVol(this)">
+        <span class="val" id="volVal">0.60</span>
+      </div>
+      <div class="slider-row">
+        <label></label>
+        <button class="paw-btn" onclick="toggleMute()" id="muteBtn">🔇 Mute</button>
+      </div>
+    </div>
+
+    <!-- Individual layer gains -->
+    <div class="panel">
+      <div class="panel-label">layer gains (real-time tuning)</div>
+      <div class="slider-row">
+        <label>motor drone:</label>
+        <input type="range" id="motorGainSlider" min="0" max="100" value="100" oninput="onLayerGain('motor', this)">
+        <span class="val" id="motorGainVal">1.00</span>
+      </div>
+      <div class="slider-row">
+        <label>step clatter:</label>
+        <input type="range" id="clatterGainSlider" min="0" max="100" value="100" oninput="onLayerGain('clatter', this)">
+        <span class="val" id="clatterGainVal">1.00</span>
+      </div>
+      <div class="slider-row">
+        <label>fluorescent hum:</label>
+        <input type="range" id="fluorGainSlider" min="0" max="100" value="100" oninput="onLayerGain('fluor', this)">
+        <span class="val" id="fluorGainVal">1.00</span>
+      </div>
+    </div>
+
+    <!-- Paw steps -->
+    <div class="panel">
+      <div class="panel-label">bo's paw steps</div>
+      <p style="font-size:10px;margin-bottom:6px;color:var(--mall-gray)">
+        Tap to fire a paw step at current flow level. At low flow, timing is jittery. At high flow, it's precise.
+      </p>
+      <button class="paw-btn" onclick="firePaw()">🐾 Paw Step</button>
+      <button class="paw-btn" onclick="startAutoWalk()">🚶 Auto-Walk (4-beat)</button>
+      <button class="paw-btn" onclick="stopAutoWalk()">⏹ Stop</button>
+      <span style="font-size:10px;color:var(--mall-gray)" id="walkStatus"></span>
+    </div>
+
+  </div>
+
+  <div class="status-bar">
+    <span id="ctxState">AudioContext: not created</span>
+    <span>Phase 1 · belt + hum + clatter + paws</span>
+  </div>
+</div>
+
+<script>
+// ================================================================
+// Inline copy of PussyphusAudio — same code as the module file,
+// embedded here so the test page is self-contained.
+// ================================================================
+
+const PussyphusAudio = (() => {
+
+  const A = {
+    MASTER_GAIN:          0.6,
+    MOTOR_FREQ_A:         55,
+    MOTOR_FREQ_B:         57,
+    MOTOR_FREQ_AC:        120,
+    MOTOR_GAIN_A:         0.08,
+    MOTOR_GAIN_B:         0.07,
+    MOTOR_GAIN_AC:        0.04,
+    MOTOR_LPF_MIN:        200,
+    MOTOR_LPF_MAX:        300,
+    MOTOR_LPF_Q:          1.0,
+    CLATTER_DURATION:     0.020,
+    CLATTER_FILTER_FREQ:  3000,
+    CLATTER_FILTER_Q:     2.5,
+    CLATTER_GAIN:         0.12,
+    CLATTER_JITTER_MAX:   0.15,
+    STEP_LENGTH:          0.4,
+    FLUOR_FREQ:           60,
+    FLUOR_GAIN_60:        0.015,
+    FLUOR_GAIN_120:       0.008,
+    FLUOR_GAIN_180:       0.004,
+    PAW_DURATION:         0.008,
+    PAW_FILTER_FREQ:      1500,
+    PAW_FILTER_Q:         3.0,
+    PAW_GAIN:             0.10,
+    PAW_JITTER_MAX:       0.12,
+    SCHEDULE_AHEAD:       0.05,
+  };
+
+  let ctx = null;
+  let masterGain = null;
+  let isMuted = false;
+  let previousGain = A.MASTER_GAIN;
+
+  // Persistent nodes
+  let motorLPF = null;
+  let motorBus = null;
+  let fluorBus = null;
+  let noiseBuffer = null;
+  let nextClatterTime = 0;
+
+  // Layer gain controls (for test page tuning)
+  let clatterGainMultiplier = 1.0;
+
+  function createNoiseBuffer(duration) {
+    const length = Math.ceil(ctx.sampleRate * duration);
+    const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < length; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    return buffer;
+  }
+
+  function init() {
+    if (ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    noiseBuffer = createNoiseBuffer(0.1);
+
+    masterGain = ctx.createGain();
+    masterGain.gain.value = A.MASTER_GAIN;
+    masterGain.connect(ctx.destination);
+
+    _initMotorDrone();
+    _initFluorescentHum();
+
+    nextClatterTime = ctx.currentTime + 0.5;
+  }
+
+  function _initMotorDrone() {
+    motorLPF = ctx.createBiquadFilter();
+    motorLPF.type = 'lowpass';
+    motorLPF.frequency.value = A.MOTOR_LPF_MIN;
+    motorLPF.Q.value = A.MOTOR_LPF_Q;
+
+    motorBus = ctx.createGain();
+    motorBus.gain.value = 1.0;
+    motorLPF.connect(motorBus);
+    motorBus.connect(masterGain);
+
+    const oscs = [
+      { freq: A.MOTOR_FREQ_A,  gain: A.MOTOR_GAIN_A  },
+      { freq: A.MOTOR_FREQ_B,  gain: A.MOTOR_GAIN_B  },
+      { freq: A.MOTOR_FREQ_AC, gain: A.MOTOR_GAIN_AC },
+    ];
+
+    oscs.forEach(({ freq, gain: g }) => {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const gn = ctx.createGain();
+      gn.gain.value = g;
+      osc.connect(gn);
+      gn.connect(motorLPF);
+      osc.start();
+    });
+  }
+
+  function _initFluorescentHum() {
+    fluorBus = ctx.createGain();
+    fluorBus.gain.value = 1.0;
+    fluorBus.connect(masterGain);
+
+    const fluors = [
+      { freq: A.FLUOR_FREQ,     gain: A.FLUOR_GAIN_60  },
+      { freq: A.FLUOR_FREQ * 2, gain: A.FLUOR_GAIN_120 },
+      { freq: A.FLUOR_FREQ * 3, gain: A.FLUOR_GAIN_180 },
+    ];
+
+    fluors.forEach(({ freq, gain: g }) => {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const gn = ctx.createGain();
+      gn.gain.value = g;
+      osc.connect(gn);
+      gn.connect(fluorBus);
+      osc.start();
+    });
+  }
+
+  function _fireClatter(when) {
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuffer;
+
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = A.CLATTER_FILTER_FREQ;
+    bp.Q.value = A.CLATTER_FILTER_Q;
+
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(A.CLATTER_GAIN * clatterGainMultiplier, when);
+    env.gain.exponentialRampToValueAtTime(0.001, when + A.CLATTER_DURATION);
+
+    src.connect(bp);
+    bp.connect(env);
+    env.connect(masterGain);
+
+    src.start(when);
+    src.stop(when + A.CLATTER_DURATION + 0.01);
+  }
+
+  function _firePawStep(when, flow) {
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuffer;
+
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = A.PAW_FILTER_FREQ;
+    bp.Q.value = A.PAW_FILTER_Q;
+
+    const env = ctx.createGain();
+    const vol = A.PAW_GAIN * (0.7 + 0.3 * flow);
+    env.gain.setValueAtTime(vol, when);
+    env.gain.exponentialRampToValueAtTime(0.001, when + A.PAW_DURATION);
+
+    src.connect(bp);
+    bp.connect(env);
+    env.connect(masterGain);
+
+    src.start(when);
+    src.stop(when + A.PAW_DURATION + 0.01);
+  }
+
+  function update(dt, flow, beltSpeed) {
+    if (!ctx || ctx.state === 'suspended') return;
+    const now = ctx.currentTime;
+
+    const targetCutoff = A.MOTOR_LPF_MIN + (A.MOTOR_LPF_MAX - A.MOTOR_LPF_MIN) * flow;
+    motorLPF.frequency.linearRampToValueAtTime(targetCutoff, now + 0.1);
+
+    if (beltSpeed > 0.01) {
+      const baseInterval = A.STEP_LENGTH / beltSpeed;
+      while (nextClatterTime < now + A.SCHEDULE_AHEAD + baseInterval) {
+        const jitterRange = A.CLATTER_JITTER_MAX * (1 - flow);
+        const jitter = (Math.random() * 2 - 1) * jitterRange;
+        const actualTime = nextClatterTime + baseInterval * jitter;
+        if (actualTime > now) {
+          _fireClatter(actualTime);
+        }
+        nextClatterTime += baseInterval;
+      }
+    }
+  }
+
+  function triggerPawStep(flow) {
+    if (!ctx || ctx.state === 'suspended') return;
+    const now = ctx.currentTime;
+    const jitterRange = A.PAW_JITTER_MAX * (1 - (flow || 0));
+    const jitter = (Math.random() * 2 - 1) * jitterRange * 0.02;
+    const when = now + A.SCHEDULE_AHEAD + jitter;
+    _firePawStep(Math.max(when, now + 0.001), flow || 0);
+  }
+
+  function triggerCollision() {}
+
+  function setVolume(v) {
+    if (!masterGain) return;
+    const clamped = Math.max(0, Math.min(1, v));
+    previousGain = clamped;
+    if (!isMuted) {
+      masterGain.gain.linearRampToValueAtTime(clamped, ctx.currentTime + 0.05);
+    }
+  }
+
+  function mute() {
+    if (!masterGain || isMuted) return;
+    isMuted = true;
+    masterGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.05);
+  }
+
+  function unmute() {
+    if (!masterGain || !isMuted) return;
+    isMuted = false;
+    masterGain.gain.linearRampToValueAtTime(previousGain, ctx.currentTime + 0.05);
+  }
+
+  function toggleMute() { isMuted ? unmute() : mute(); }
+
+  // Test-page helpers
+  function setMotorBusGain(v) { if (motorBus) motorBus.gain.linearRampToValueAtTime(v, ctx.currentTime + 0.05); }
+  function setClatterGainMultiplier(v) { clatterGainMultiplier = v; }
+  function setFluorBusGain(v) { if (fluorBus) fluorBus.gain.linearRampToValueAtTime(v, ctx.currentTime + 0.05); }
+
+  return {
+    init, update, triggerPawStep, triggerCollision,
+    setVolume, mute, unmute, toggleMute,
+    setMotorBusGain, setClatterGainMultiplier, setFluorBusGain,
+    get isMuted() { return isMuted; },
+    get ctx() { return ctx; },
+    A,
+  };
+})();
+
+
+// ================================================================
+// Test page controls
+// ================================================================
+
+let currentFlow = 0;
+let currentBeltSpeed = 0.5;
+let animFrame = null;
+let lastTime = 0;
+let autoWalkInterval = null;
+
+const moods = [
+  'INDIFFERENT', 'TOLERANT', 'PIQUED', 'AMUSED', 'GLIDING',
+  'THREADER', 'ASCENDANT', 'TRANSCENDENT', 'RETAIL-BLESSED'
+];
+
+function getMood(flow) {
+  const i = Math.min(Math.floor(flow * moods.length), moods.length - 1);
+  return moods[i];
+}
+
+function startAudio() {
+  PussyphusAudio.init();
+  document.getElementById('startBtn').textContent = '■ Audio Running';
+  document.getElementById('startBtn').classList.add('running');
+  document.getElementById('ctxState').textContent = 'AudioContext: running';
+  lastTime = performance.now();
+  tick();
+}
+
+function tick() {
+  const now = performance.now();
+  const dt = (now - lastTime) / 1000;
+  lastTime = now;
+
+  PussyphusAudio.update(dt, currentFlow, currentBeltSpeed);
+
+  animFrame = requestAnimationFrame(tick);
+}
+
+function onFlow(el) {
+  currentFlow = el.value / 100;
+  document.getElementById('flowVal').textContent = currentFlow.toFixed(2);
+  document.getElementById('flowFill').style.width = (currentFlow * 100) + '%';
+  document.getElementById('flowMood').textContent = getMood(currentFlow);
+}
+
+function onBelt(el) {
+  currentBeltSpeed = el.value / 100;
+  document.getElementById('beltVal').textContent = currentBeltSpeed.toFixed(2);
+  const bpm = Math.round((currentBeltSpeed / 0.4) * 60);
+  document.getElementById('bpmVal').textContent = bpm;
+}
+
+function onVol(el) {
+  const v = el.value / 100;
+  document.getElementById('volVal').textContent = v.toFixed(2);
+  PussyphusAudio.setVolume(v);
+}
+
+function toggleMute() {
+  PussyphusAudio.toggleMute();
+  document.getElementById('muteBtn').textContent =
+    PussyphusAudio.isMuted ? '🔊 Unmute' : '🔇 Mute';
+}
+
+function onLayerGain(layer, el) {
+  const v = el.value / 100;
+  document.getElementById(layer + 'GainVal').textContent = v.toFixed(2);
+  if (layer === 'motor') PussyphusAudio.setMotorBusGain(v);
+  if (layer === 'clatter') PussyphusAudio.setClatterGainMultiplier(v);
+  if (layer === 'fluor') PussyphusAudio.setFluorBusGain(v);
+}
+
+function firePaw() {
+  PussyphusAudio.triggerPawStep(currentFlow);
+}
+
+function startAutoWalk() {
+  stopAutoWalk();
+  // 4-beat cat gait synced roughly to the belt BPM
+  const bpm = (currentBeltSpeed / 0.4) * 60;
+  // Cat takes ~2 steps per escalator step (smaller stride)
+  const pawBPM = bpm * 2;
+  const interval = 60000 / Math.max(pawBPM, 30);
+
+  autoWalkInterval = setInterval(() => {
+    PussyphusAudio.triggerPawStep(currentFlow);
+  }, interval);
+
+  document.getElementById('walkStatus').textContent =
+    'walking at ~' + Math.round(pawBPM) + ' steps/min';
+}
+
+function stopAutoWalk() {
+  if (autoWalkInterval) {
+    clearInterval(autoWalkInterval);
+    autoWalkInterval = null;
+  }
+  document.getElementById('walkStatus').textContent = '';
+}
+</script>
+
+</body>
+</html>

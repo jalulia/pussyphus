@@ -4,6 +4,7 @@
 import * as K from '../constants.js';
 import * as cat from './cat.js';
 import * as catTail from './catTail.js';
+import * as foley from '../audio/foley.js';
 import { updateTube, bodyGeo, bellyGeo, tailGeo, tailTipGeo,
          catGroup, catEarL, catEarR, catEarLIn, catEarRIn,
          catMask, catNose, catLegs } from './catModel.js';
@@ -17,6 +18,7 @@ for (let i = 0; i < K.BODY_SPINE_PTS; i++) { _bodyPts.push({x:0,y:0,z:0}); _body
 for (let i = 0; i < K.TAIL_SEGMENTS;  i++) { _tailPts.push({x:0,y:0,z:0}); _tailRad.push(0); }
 for (let i = 0; i < 4;                i++) { _tipPts.push({x:0,y:0,z:0});  _tipRad.push(0);  }
 const _tailOff = { dx: 0, dy: 0, dz: 0 };
+let _prevWSign = 1;  // track walk sine sign for zero-crossing detection
 
 /**
  * Update all cat meshes from current spring chain state.
@@ -116,6 +118,12 @@ export function animate(t, nearestDist, nearestDir) {
   // ═══ Legs — long Cornish Rex stilts ═══
   const wt = t * (3 + Math.abs(headX - cat.buttX) * 30);
   const w = Math.sin(wt);
+  // Paw step trigger — fire at zero-crossings of walk sine (paw contacts step)
+  const wSign = w >= 0 ? 1 : -1;
+  if (wSign !== _prevWSign) {
+    foley.triggerPawStep(cat.getFlow01());
+  }
+  _prevWSign = wSign;
   // Front legs — cylinder center raised for 0.08 height
   catLegs[0].position.set(headX - 0.028, frontFloor + 0.05, headZ + 0.02); catLegs[0].rotation.x = w * 0.3;
   catLegs[1].position.set(headX - 0.028, frontFloor + 0.008, headZ + 0.02);
