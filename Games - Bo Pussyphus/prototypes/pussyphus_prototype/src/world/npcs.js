@@ -61,27 +61,33 @@ function makeNpcTubeGeo() {
   return geo;
 }
 
-// Update NPC tube spine — vertical column, slight sway
-function updateNpcTube(geo, radii, height, x, y, sway) {
+// Update NPC tube spine — vertical column with lateral sway and forward lean
+function updateNpcTube(geo, radii, height, x, y, sway, fwdLean) {
+  const lean = fwdLean || 0;
   const N = K.NPC_SPINE_PTS;
   const S = K.NPC_TUBE_CROSS_SEGS;
   const pos = geo.attributes.position.array;
   for (let i = 0; i < N; i++) {
     const prog = i / (N - 1);
-    const px = x + sway * prog * prog;    // sway increases toward head
+    const px = x + sway * prog * prog;          // lateral sway increases toward head
     const py = y + height * prog;
-    const pz = 0;
+    const pz = -lean * prog * prog;              // forward lean increases toward head
     const r = radii[i];
 
     // Tangent is mostly vertical
-    let tx = sway * 2 * prog / (N - 1), ty = height / (N - 1), tz = 0;
-    const tl = Math.sqrt(tx * tx + ty * ty) || 1;
-    tx /= tl; ty /= tl;
+    let tx = sway * 2 * prog / (N - 1), ty = height / (N - 1);
+    let tz = -lean * 2 * prog / (N - 1);
+    const tl = Math.sqrt(tx * tx + ty * ty + tz * tz) || 1;
+    tx /= tl; ty /= tl; tz /= tl;
 
-    // Right = cross(tangent, forward)
+    // Right = cross(tangent, forward≈Z)
     let rx = ty, ry = -tx, rz = 0;
-    // Up = cross(right, tangent) — for vertical tubes this is roughly Z
-    let ux = 0, uy = 0, uz = 1;
+    const rl = Math.sqrt(rx * rx + ry * ry) || 1;
+    rx /= rl; ry /= rl;
+    // Up = cross(right, tangent)
+    let ux = ry * tz - rz * ty;
+    let uy = rz * tx - rx * tz;
+    let uz = rx * ty - ry * tx;
 
     for (let j = 0; j < S; j++) {
       const a = (j / S) * Math.PI * 2;
@@ -95,21 +101,33 @@ function updateNpcTube(geo, radii, height, x, y, sway) {
   const capA = N * S;
   pos[capA * 3] = x; pos[capA * 3 + 1] = y; pos[capA * 3 + 2] = 0;
   const capB = capA + 1;
-  pos[capB * 3] = x + sway; pos[capB * 3 + 1] = y + height; pos[capB * 3 + 2] = 0;
+  pos[capB * 3] = x + sway;
+  pos[capB * 3 + 1] = y + height;
+  pos[capB * 3 + 2] = -lean;
   geo.attributes.position.needsUpdate = true;
   geo.computeVertexNormals();
 }
 
-// Leg heights per type — longer legs for taller NPCs
-const NPC_LEG_HEIGHT = { shopper: 0.35, phone: 0.38, salesrep: 0.36 };
-const NPC_LEG_RADIUS = 0.04;   // thin enough to see daylight between legs
-const NPC_LEG_GAP = 0.10;      // lateral distance between legs (center to center)
+// ── NPC dimensions ──
+// Leg proportions — two-segment: wider thigh, narrower lower leg
+const NPC_LEG_HEIGHT  = { shopper: 0.35, phone: 0.38, salesrep: 0.36 };
+const NPC_THIGH_R_TOP = 0.05;    // hip end (matches body taper)
+const NPC_THIGH_R_BOT = 0.035;   // knee end
+const NPC_LOWER_R_TOP = 0.033;   // knee
+const NPC_LOWER_R_BOT = 0.022;   // ankle
+const NPC_LEG_GAP     = { shopper: 0.08, phone: 0.06, salesrep: 0.07 };
+// Shoe proportions — low-profile, proportional to ankle
+const NPC_SHOE_W = 0.05;   // slightly wider than ankle
+const NPC_SHOE_H = 0.025;  // low profile
+const NPC_SHOE_D = 0.09;   // longer front-to-back (shoe-shaped)
+// Posture — random lean variation ± this amount (radians)
+const NPC_LEAN_JITTER = 0.04;  // ~2-3 degrees
 
 function buildNPC(type) {
   const g = new THREE.Group();
   const bodyMat = M.pick(NPC_BODY_POOLS[type] || NPC_BODY_POOLS.shopper);
 
-  // Main body tube — starts above legs, not at ground
+  // Main body tube — starts above legs
   const bodyGeo = makeNpcTubeGeo();
   const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
   bodyMesh.frustumCulled = false;
@@ -121,91 +139,153 @@ function buildNPC(type) {
   const head = new THREE.Mesh(new THREE.SphereGeometry(headSize, 5, 4), sk);
   g.add(head);
 
-  // ── Legs — two cylinders with visible gap, shoes at bottom ──
+  // ── Legs — two-segment per leg (thigh + lower) + shoe ──
   const legH = NPC_LEG_HEIGHT[type] || 0.35;
+  const thighH = legH * 0.52;   // thigh slightly longer
+  const lowerH = legH * 0.48;
+  const gap = NPC_LEG_GAP[type] || 0.07;
   const pantsMat = M.pick(M.pantsPool);
-  const sho = M.pick(M.shoePool);
-  const legL = new THREE.Mesh(new THREE.CylinderGeometry(NPC_LEG_RADIUS, NPC_LEG_RADIUS * 0.9, legH, 5), pantsMat);
-  const legR = new THREE.Mesh(new THREE.CylinderGeometry(NPC_LEG_RADIUS, NPC_LEG_RADIUS * 0.9, legH, 5), pantsMat);
-  legL.position.set(-NPC_LEG_GAP, legH / 2, 0);
-  legR.position.set( NPC_LEG_GAP, legH / 2, 0);
-  g.add(legL, legR);
+  const shoeMat = M.pick(M.shoePool);
 
-  // Shoes — dark blocks at the bottom of each leg
-  const shoeL = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.05, 0.16), sho);
-  const shoeR = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.05, 0.16), sho);
-  shoeL.position.set(-NPC_LEG_GAP, 0.025, 0.02);
-  shoeR.position.set( NPC_LEG_GAP, 0.025, 0.02);
+  // Left thigh + lower
+  const thighL = new THREE.Mesh(
+    new THREE.CylinderGeometry(NPC_THIGH_R_TOP, NPC_THIGH_R_BOT, thighH, 6), pantsMat);
+  const lowerL = new THREE.Mesh(
+    new THREE.CylinderGeometry(NPC_LOWER_R_TOP, NPC_LOWER_R_BOT, lowerH, 6), pantsMat);
+  thighL.position.set(-gap, lowerH + thighH / 2, 0);
+  lowerL.position.set(-gap, lowerH / 2, 0);
+  g.add(thighL, lowerL);
+
+  // Right thigh + lower
+  const thighR = new THREE.Mesh(
+    new THREE.CylinderGeometry(NPC_THIGH_R_TOP, NPC_THIGH_R_BOT, thighH, 6), pantsMat);
+  const lowerR = new THREE.Mesh(
+    new THREE.CylinderGeometry(NPC_LOWER_R_TOP, NPC_LOWER_R_BOT, lowerH, 6), pantsMat);
+  thighR.position.set(gap, lowerH + thighH / 2, 0);
+  lowerR.position.set(gap, lowerH / 2, 0);
+  g.add(thighR, lowerR);
+
+  // Shoes — low-profile, proportional
+  const shoeL = new THREE.Mesh(new THREE.BoxGeometry(NPC_SHOE_W, NPC_SHOE_H, NPC_SHOE_D), shoeMat);
+  const shoeR = new THREE.Mesh(new THREE.BoxGeometry(NPC_SHOE_W, NPC_SHOE_H, NPC_SHOE_D), shoeMat);
+  shoeL.position.set(-gap, NPC_SHOE_H / 2, 0.01);
+  shoeR.position.set( gap, NPC_SHOE_H / 2, 0.01);
   g.add(shoeL, shoeR);
+
+  // Hip connector — wider block bridging body taper to leg tops
+  const hipMat = pantsMat;
+  const hipW = gap * 2 + NPC_THIGH_R_TOP * 2;  // spans both leg tops
+  const hipH = 0.06;
+  const hip = new THREE.Mesh(
+    new THREE.BoxGeometry(hipW, hipH, NPC_THIGH_R_TOP * 1.8), hipMat);
+  hip.position.set(0, legH + hipH / 2, 0);
+  g.add(hip);
+
+  // Random lean variation — ±2-3 degrees
+  const leanJitter = (Math.random() - 0.5) * NPC_LEAN_JITTER * 2;
+
+  const bodyBase = legH + hipH;   // body tube starts above legs + hip connector
 
   g.userData = {
     type, passed: false,
     beltZ: 0, lane: 0,
     swingPhase: Math.random() * 6.28,
     leanDir: 0, hasBag: false,
-    bodyGeo,                               // ref for per-frame tube update
+    bodyGeo, bodyBase,
     radii: NPC_RADII[type] || K.NPC_RADII_SHOPPER,
     height: NPC_HEIGHTS[type] || 1.1,
-    legH,
-    driftPhase: Math.random() * 6.28,      // for phone zombie drift
-    headMesh: head,
-    legL, legR, shoeL, shoeR,              // refs for leg animation
+    legH, gap, thighH, lowerH, hipH,
+    driftPhase: Math.random() * 6.28,
+    headMesh: head, hip,
+    thighL, thighR, lowerL, lowerR,
+    shoeL, shoeR,
+    leanJitter,                            // subtle random lean
+    forwardLean: 0,                        // type-specific lean (set below)
+    lateralLean: 0,                        // type-specific lean (set below)
   };
   const prof = ACOUSTIC_PROFILE[type] || ACOUSTIC_PROFILE.shopper;
   g.userData.absorb = prof.absorb;
   g.userData.spread = prof.spread;
 
-  // ── Type-specific accessories ──
-  const bodyBase = legH * 0.8;   // Y offset where body tube starts
+  // ── Type-specific accessories + posture ──
 
-  // Shopper: bags that widen the silhouette
-  if (type === 'shopper' && Math.random() > 0.3) {
-    const bagMat = M.pick(M.bagPool);
-    const bg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.22, 0.08), bagMat);
-    bg.position.set(0.28, 0.55 + bodyBase, 0);
-    g.add(bg);
-    g.userData.hasBag = true;
-    g.userData.spread = 0.7;
-    // Second bag on opposite side for some shoppers
-    if (Math.random() > 0.5) {
-      const bg2 = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.18, 0.07), M.pick(M.bagPool));
-      bg2.position.set(-0.26, 0.50 + bodyBase, 0);
-      g.add(bg2);
-      g.userData.hasBag2 = true;
+  // Shopper: wider stance (already via NPC_LEG_GAP), bags at Bo's head height
+  if (type === 'shopper') {
+    // 80% of shoppers get at least one bag
+    if (Math.random() > 0.2) {
+      const bagColors = [0xc0a030, 0xc07080, 0xd0d0d0];
+      const bc = bagColors[Math.floor(Math.random() * bagColors.length)];
+      const bagMat = new THREE.MeshLambertMaterial({ color: bc });
+      // Bag hangs at hand height (~0.35 from ground = Bo's head height)
+      const bagW = 0.14, bagH = 0.20, bagD = 0.08;
+      const bg = new THREE.Mesh(new THREE.BoxGeometry(bagW, bagH, bagD), bagMat);
+      bg.position.set(0.22, 0.35, 0);
+      bg.userData.isBag = true;
+      g.add(bg);
+      g.userData.hasBag = true;
+      g.userData.spread = 0.7;
+      // 50% chance of second bag on opposite side
+      if (Math.random() > 0.5) {
+        const bc2 = bagColors[Math.floor(Math.random() * bagColors.length)];
+        const bg2 = new THREE.Mesh(
+          new THREE.BoxGeometry(0.12, 0.18, 0.07),
+          new THREE.MeshLambertMaterial({ color: bc2 }));
+        bg2.position.set(-0.20, 0.32, 0);
+        bg2.userData.isBag = true;
+        g.add(bg2);
+      }
     }
+    // Shopper stands upright — no lean
+    g.userData.forwardLean = 0;
+    g.userData.lateralLean = 0;
   }
 
-  // Sales Rep: lean direction + yellow-ish vest accent
-  if (type === 'salesrep') {
-    g.userData.leanDir = Math.random() > 0.5 ? 1 : -1;
-    // Vest/badge accent — slightly brighter than body, signals "mall employee"
-    const vest = new THREE.Mesh(
-      new THREE.BoxGeometry(0.18, 0.25, 0.10),
-      new THREE.MeshLambertMaterial({ color: 0xb8a840 })  // dull gold vest
-    );
-    vest.position.set(0, 0.65 + bodyBase, 0.04);
-    g.add(vest);
-  }
-
-  // Phone Zombie: extended arm + phone, forward lean baked into body
+  // Phone Zombie: narrow, 10-15° forward lean, arm + phone
   if (type === 'phone') {
-    // Arm cylinder extending forward-down
+    g.userData.forwardLean = 0.20 + Math.random() * 0.08;  // 12-16° forward lean
+    g.userData.lateralLean = 0;
+    // Arm extending forward-down (attached to body, not floating)
     const armMat = M.pick(M.shirtPool);
-    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.02, 0.25, 4), armMat);
-    arm.position.set(0.10, 0.70 + bodyBase, 0.12);
-    arm.rotation.x = -0.6;  // angled forward/down
-    arm.rotation.z = 0.3;
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.018, 0.28, 5), armMat);
+    arm.position.set(0.08, 0.60 + bodyBase, 0.14);
+    arm.rotation.x = -0.7;
+    arm.rotation.z = 0.2;
     g.add(arm);
-    // Phone at end of arm
-    const ph = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.08, 0.015), M.catPupil);
-    ph.position.set(0.14, 0.60 + bodyBase, 0.20);
+    // Phone in hand — white or light gray, small rectangle (no teal — that's Bo's color)
+    const phoneColor = Math.random() > 0.5 ? 0xd0d0d0 : 0xb0b0b0;
+    const ph = new THREE.Mesh(
+      new THREE.BoxGeometry(0.03, 0.06, 0.008),
+      new THREE.MeshBasicMaterial({ color: phoneColor }));
+    ph.position.set(0.12, 0.48 + bodyBase, 0.24);
     g.add(ph);
     g.userData.phoneMesh = ph;
     g.userData.armMesh = arm;
   }
 
-  // Initial tube shape — body starts above leg height
-  updateNpcTube(bodyGeo, g.userData.radii, g.userData.height, 0, legH * 0.8, 0);
+  // Sales Rep: lateral lean toward center, extended arm, yellow-green vest
+  if (type === 'salesrep') {
+    g.userData.leanDir = Math.random() > 0.5 ? 1 : -1;
+    g.userData.forwardLean = 0;
+    g.userData.lateralLean = g.userData.leanDir * (0.08 + Math.random() * 0.04);  // 5-7°
+    // Yellow-green vest
+    const vest = new THREE.Mesh(
+      new THREE.BoxGeometry(0.16, 0.22, 0.09),
+      new THREE.MeshLambertMaterial({ color: 0xc0b030 }));
+    vest.position.set(0, 0.55 + bodyBase, 0.03);
+    g.add(vest);
+    g.userData.vestMesh = vest;
+    // Extended arm gesturing toward center
+    const armMat = M.pick(M.shirtPool);
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.018, 0.25, 5), armMat);
+    arm.position.set(g.userData.leanDir * 0.18, 0.65 + bodyBase, 0.06);
+    arm.rotation.z = -g.userData.leanDir * 0.8;   // arm extends toward center
+    arm.rotation.x = -0.3;
+    g.add(arm);
+    g.userData.armMesh = arm;
+  }
+
+  // Initial tube shape — body starts above legs + hip
+  updateNpcTube(bodyGeo, g.userData.radii, g.userData.height, 0, bodyBase, 0);
 
   return g;
 }
@@ -251,57 +331,73 @@ export function update(dt, beltSpeed, t, catHeadX, catStepZ, scene) {
     const npcStepY = findStepSurface(z);
     n.position.set(ud.lane, npcStepY, z);
 
-    // ── Per-frame tube body update — starts above legs ──
-    const sway = ud.type === 'salesrep'
-      ? ud.leanDir * (0.06 + Math.sin(t * 1.5) * 0.02)   // forward lean
-      : Math.sin(t * 1.2 + ud.swingPhase) * 0.02;         // subtle walk sway
-    const bodyBase = ud.legH * 0.8;   // body tube bottom sits above legs
-    updateNpcTube(ud.bodyGeo, ud.radii, ud.height, 0, bodyBase, sway);
+    // ── Posture — type-specific lean + random jitter ──
+    const fwdLean = ud.forwardLean + ud.leanJitter;   // phone zombie leans forward
+    const latLean = ud.lateralLean;                     // sales rep leans sideways
+    const bodyBase = ud.bodyBase;
 
-    // Head tracks tube top (body base + body height + small gap)
-    ud.headMesh.position.set(sway, bodyBase + ud.height + 0.06, 0);
+    // Body sway — subtle walk oscillation (bolt-upright NPCs + posture lean)
+    const walkSway = Math.sin(t * 1.2 + ud.swingPhase) * 0.015;
+    const totalSway = walkSway + latLean;
 
-    // ── Leg sway — simple back-and-forth synced to belt ──
-    const legSwing = Math.sin(t * 3.0 + ud.swingPhase) * 0.15;
-    const legH = ud.legH;
-    // Left leg swings forward, right swings back (opposite phase)
-    ud.legL.position.set(-NPC_LEG_GAP, legH / 2, legSwing * 0.08);
-    ud.legR.position.set( NPC_LEG_GAP, legH / 2, -legSwing * 0.08);
-    ud.legL.rotation.x = legSwing;
-    ud.legR.rotation.x = -legSwing;
-    // Shoes track leg bottoms
-    ud.shoeL.position.set(-NPC_LEG_GAP, 0.025, legSwing * 0.12 + 0.02);
-    ud.shoeR.position.set( NPC_LEG_GAP, 0.025, -legSwing * 0.12 + 0.02);
+    // Update tube body with posture (lateral sway + forward lean)
+    updateNpcTube(ud.bodyGeo, ud.radii, ud.height, 0, bodyBase, totalSway, fwdLean);
 
-    // ── Bag swing animation ──
+    // Head tracks tube top
+    ud.headMesh.position.set(totalSway, bodyBase + ud.height + 0.06, -fwdLean * 0.4);
+
+    // Hip connector follows body
+    ud.hip.position.set(totalSway * 0.3, ud.legH + ud.hipH / 2, 0);
+
+    // ── Two-segment leg sway — thighs and lower legs ──
+    const legSwing = Math.sin(t * 2.5 + ud.swingPhase) * 0.12;
+    const gap = ud.gap;
+    const lowerH = ud.lowerH;
+    const thighH = ud.thighH;
+
+    // Left leg swings forward, right back (opposite phase)
+    ud.thighL.position.set(-gap, lowerH + thighH / 2, legSwing * 0.04);
+    ud.thighR.position.set( gap, lowerH + thighH / 2, -legSwing * 0.04);
+    ud.thighL.rotation.x = legSwing * 0.5;
+    ud.thighR.rotation.x = -legSwing * 0.5;
+    ud.lowerL.position.set(-gap, lowerH / 2, legSwing * 0.06);
+    ud.lowerR.position.set( gap, lowerH / 2, -legSwing * 0.06);
+    ud.lowerL.rotation.x = legSwing * 0.3;
+    ud.lowerR.rotation.x = -legSwing * 0.3;
+
+    // Shoes track ankle position
+    ud.shoeL.position.set(-gap, NPC_SHOE_H / 2, legSwing * 0.07 + 0.01);
+    ud.shoeR.position.set( gap, NPC_SHOE_H / 2, -legSwing * 0.07 + 0.01);
+
+    // ── Bag swing — bags at Bo's head height ──
     if (ud.hasBag) {
-      const bagSwing = Math.sin(t * 2 + ud.swingPhase) * 0.06;
-      // Find bag meshes by their X offset (bags sit at ±0.26..0.28)
+      const bagSwing = Math.sin(t * 2 + ud.swingPhase) * 0.03;
       for (const child of n.children) {
-        if (child.geometry && child.geometry.type === 'BoxGeometry'
-            && Math.abs(child.position.x) > 0.2 && child.position.y > 0.4) {
-          const side = child.position.x > 0 ? 1 : -1;
-          child.position.x = side * (0.27 + Math.abs(bagSwing));
-          child.position.y = 0.55 + bodyBase;  // bags ride with body
+        if (child.userData && child.userData.isBag) {
+          // Use stored base X so swing doesn't accumulate
+          if (child.userData.baseX === undefined) child.userData.baseX = child.position.x;
+          const side = child.userData.baseX > 0 ? 1 : -1;
+          child.position.x = child.userData.baseX + bagSwing * side;
         }
       }
     }
 
     // ── Phone zombie: arm + phone bob ──
     if (ud.type === 'phone' && ud.armMesh) {
-      const phoneBob = Math.sin(t * 2.5 + ud.driftPhase) * 0.02;
-      ud.armMesh.position.y = 0.70 + bodyBase + phoneBob;
-      ud.phoneMesh.position.y = 0.60 + bodyBase + phoneBob;
+      const phoneBob = Math.sin(t * 2.5 + ud.driftPhase) * 0.015;
+      ud.armMesh.position.y = 0.60 + bodyBase + phoneBob;
+      if (ud.phoneMesh) ud.phoneMesh.position.y = 0.48 + bodyBase + phoneBob;
     }
 
-    // ── Sales rep vest rides with body ──
+    // ── Sales rep: vest + arm track body lean ──
     if (ud.type === 'salesrep') {
-      for (const child of n.children) {
-        if (child.geometry && child.geometry.type === 'BoxGeometry'
-            && child.position.y > 0.5 && child.position.z > 0.03) {
-          child.position.y = 0.65 + bodyBase;
-          child.position.x = sway * 0.5;  // vest leans with body
-        }
+      if (ud.vestMesh) {
+        ud.vestMesh.position.x = totalSway * 0.4;
+        ud.vestMesh.position.y = 0.55 + bodyBase;
+      }
+      if (ud.armMesh) {
+        ud.armMesh.position.x = ud.leanDir * 0.18 + totalSway * 0.3;
+        ud.armMesh.position.y = 0.65 + bodyBase;
       }
     }
 

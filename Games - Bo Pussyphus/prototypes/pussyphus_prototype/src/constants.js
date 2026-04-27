@@ -52,18 +52,21 @@ export const TAIL_SEGMENTS = 12;
 export const TUBE_CROSS_SEGS = 6;      // hexagonal cross-section
 
 // Cat walk cycle — procedural quadruped gait
-// Leg geometry
-export const LEG_UPPER_LEN = 0.045;    // shoulder/hip to knee/elbow
-export const LEG_LOWER_LEN = 0.045;    // knee/elbow to paw
-export const LEG_RADIUS_TOP = 0.009;   // thigh/upper arm width
-export const LEG_RADIUS_BOT = 0.006;   // shin/forearm width (tapers)
-export const PAW_RADIUS = 0.009;       // oval paw
+// Leg geometry — thick enough to survive dither shader
+export const LEG_UPPER_LEN = 0.050;    // shoulder/hip to knee/elbow
+export const LEG_LOWER_LEN = 0.048;    // knee/elbow to paw
+export const LEG_RADIUS_TOP = 0.016;   // thigh/upper arm width (visible through dither)
+export const LEG_RADIUS_BOT = 0.011;   // shin/forearm width (tapers)
+export const PAW_RADIUS = 0.014;       // oval paw
+// Gait timing
+export const WALK_RATE = 10;           // phase rate per unit belt speed (~2.5 Hz at base speed)
 // Stride parameters (interpolated by flow)
-export const STRIDE_LEN_STIFF = 0.035; // short careful strides at zero flow
-export const STRIDE_LEN_LOOSE = 0.06;  // long fluid strides at max flow
-export const STEP_HEIGHT_STIFF = 0.018;// low careful lift at zero flow
-export const STEP_HEIGHT_LOOSE = 0.032;// bouncy high lift at max flow
-export const STEP_SPEED = 12;          // how fast the paw swings to its target
+export const STRIDE_AMP_STIFF = 0.020; // short careful strides at zero flow
+export const STRIDE_AMP_LOOSE = 0.035; // long fluid strides at max flow
+export const STEP_HEIGHT_STIFF = 0.010;// low careful lift at zero flow
+export const STEP_HEIGHT_LOOSE = 0.020;// bouncy high lift at max flow
+export const PAW_SMOOTH = 15;          // how fast the paw eases to its target
+export const PAW_GROUND_SNAP = 20;     // how fast planted paw snaps to floor
 // Stance offsets from body anchors
 export const FRONT_STANCE_X = 0.026;   // lateral offset from spine
 export const BACK_STANCE_X = 0.028;
@@ -101,10 +104,11 @@ export const NPC_HIT_RADIUS_Z = 0.25;
 // NPC tube geometry — spine points and type-specific radii
 export const NPC_SPINE_PTS = 8;        // feet → head
 export const NPC_TUBE_CROSS_SEGS = 5;  // pentagonal cross-section (cheaper than cat's hex)
-// Type radii: feet → head (8 points). Wider = more imposing silhouette.
-export const NPC_RADII_SHOPPER  = [0.08, 0.09, 0.14, 0.20, 0.22, 0.18, 0.14, 0.10];
-export const NPC_RADII_PHONE    = [0.06, 0.07, 0.10, 0.12, 0.13, 0.11, 0.10, 0.09];
-export const NPC_RADII_SALESREP = [0.07, 0.08, 0.11, 0.14, 0.16, 0.13, 0.11, 0.10];
+// Type radii: bottom → top (8 points). Now tapered at bottom for hip→leg transition.
+// Pattern: hip(narrow) → waist(narrow) → belly → chest(widest) → shoulder → neck taper → head
+export const NPC_RADII_SHOPPER  = [0.06, 0.10, 0.14, 0.20, 0.22, 0.18, 0.14, 0.10];
+export const NPC_RADII_PHONE    = [0.05, 0.07, 0.09, 0.12, 0.13, 0.11, 0.10, 0.09];
+export const NPC_RADII_SALESREP = [0.05, 0.08, 0.10, 0.14, 0.16, 0.13, 0.11, 0.10];
 // NPC springs — always stiffer than Bo at any flow level (NPCs are rigid)
 export const NPC_SPRING_SWAY = 2;      // lateral sway spring (vs Bo's 4-14)
 // Phone zombie drift

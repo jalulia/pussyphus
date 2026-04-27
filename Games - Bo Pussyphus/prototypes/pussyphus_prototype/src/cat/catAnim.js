@@ -21,20 +21,16 @@ const _tailOff = { dx: 0, dy: 0, dz: 0 };
 
 // ── Procedural walk cycle state ──
 // 4 legs: FL=0, FR=1, BL=2, BR=3
-// Diagonal pairs: (FL+BR) and (FR+BL) alternate.
-// Each leg tracks: current paw position, target paw position, phase (0=planted, 0→1=stepping)
+// Diagonal pairs: (FL+BR) and (FR+BL) alternate, offset by π.
 const _legs = [];
 for (let i = 0; i < 4; i++) {
   _legs.push({
-    pawX: 0, pawY: 0, pawZ: 0,       // current paw world position
-    targetX: 0, targetZ: 0,           // where the paw wants to be (ground plane)
-    phase: 0,                          // 0 = planted, >0 = in swing (0→1)
-    lastPawY: 0,                       // for audio trigger
+    pawX: 0, pawY: 0, pawZ: 0,       // current paw world position (smoothed)
+    lastSinP: 0,                       // previous sin(phase) for audio trigger
+    inited: false,                     // set true once paw snaps to anchor on first frame
   });
 }
-let _gaitClock = 0;      // accumulates with belt speed
-let _lastStepPair = 0;   // 0 = pair A (FL+BR) just stepped, 1 = pair B (FR+BL)
-let _pawStepFired = false;
+let _walkPhase = 0;      // continuous phase, drives all four legs
 
 // ── Helpers ──
 function lerp(a, b, t) { return a + (b - a) * t; }
@@ -197,72 +193,62 @@ export function animate(t, dt, beltSpeed, nearestDist, nearestDir) {
   });
 
   // ═══ Legs — procedural quadruped gait ═══
-  // Advance gait clock based on belt speed (legs step because escalator moves)
-  _gaitClock += beltSpeed * dt;
+  // Phase advances with belt speed — ~2.5 full cycles/sec at base speed
+  _walkPhase += beltSpeed * K.WALK_RATE * dt;
 
   // Flow-responsive stride parameters
-  const strideLen  = lerp(K.STRIDE_LEN_STIFF,  K.STRIDE_LEN_LOOSE,  flow01);
+  const strideAmp  = lerp(K.STRIDE_AMP_STIFF,  K.STRIDE_AMP_LOOSE,  flow01);
   const stepHeight = lerp(K.STEP_HEIGHT_STIFF,  K.STEP_HEIGHT_LOOSE, flow01);
 
-  // Anchor points — where legs attach to the body
+  // Anchor points — where legs attach to the body spine
   const anchors = [
-    // FL: near head, left
+    // FL: shoulder, left
     { x: headX - K.FRONT_STANCE_X, y: headY - 0.02, z: headZ + K.FRONT_STANCE_Z,
-      floorY: frontFloor, side: -1, front: true },
-    // FR: near head, right
+      floorY: frontFloor },
+    // FR: shoulder, right
     { x: headX + K.FRONT_STANCE_X, y: headY - 0.02, z: headZ + K.FRONT_STANCE_Z,
-      floorY: frontFloor, side: 1, front: true },
-    // BL: near butt, left
+      floorY: frontFloor },
+    // BL: hip, left
     { x: cat.buttX - K.BACK_STANCE_X, y: buttY - 0.005, z: cat.buttZ - K.BACK_STANCE_Z,
-      floorY: backFloor, side: -1, front: false },
-    // BR: near butt, right
+      floorY: backFloor },
+    // BR: hip, right
     { x: cat.buttX + K.BACK_STANCE_X, y: buttY - 0.005, z: cat.buttZ - K.BACK_STANCE_Z,
-      floorY: backFloor, side: 1, front: false },
+      floorY: backFloor },
   ];
 
-  // Diagonal pairs: pairA = FL(0) + BR(3), pairB = FR(1) + BL(2)
-  const pairA = [0, 3];
-  const pairB = [1, 2];
-
-  // Determine which pair should step: alternate every half-stride
-  const halfStride = strideLen * 0.5;
-  const strideFrac = (_gaitClock % (strideLen)) / strideLen;
-  const currentPair = strideFrac < 0.5 ? 0 : 1;
-
-  // Update foot targets and step phase for each leg
+  // Diagonal gait: FL(0)+BR(3) in phase, FR(1)+BL(2) offset by π
   for (let i = 0; i < 4; i++) {
     const leg = _legs[i];
     const anc = anchors[i];
     const isPairA = (i === 0 || i === 3);
-    const isActive = isPairA ? (currentPair === 0) : (currentPair === 1);
-    const pairPhase = isPairA ? strideFrac : ((strideFrac + 0.5) % 1.0);
+    const phase = _walkPhase + (isPairA ? 0 : Math.PI);
+    const sinP = Math.sin(phase);
 
-    // Target = directly below anchor, offset by stride cycle along Z
-    const strideOffset = (pairPhase - 0.25) * strideLen;
-    leg.targetX = anc.x;
-    leg.targetZ = anc.z + strideOffset;
+    // Target paw: below anchor, offset forward/back by stride
+    const targetX = anc.x;
+    const targetZ = anc.z + sinP * strideAmp;
+    // Lift paw during forward swing only (sinP > 0 = swinging forward)
+    const lift = Math.max(0, sinP) * stepHeight;
+    const targetY = anc.floorY + lift;
 
-    if (isActive && pairPhase < 0.5) {
-      // Swing phase: paw is in the air, moving to target
-      const swingT = pairPhase / 0.5;  // 0→1 during swing
-      // Parabolic arc for paw lift
-      const liftArc = 4 * swingT * (1 - swingT);  // peaks at 0.5
-      leg.pawX += (leg.targetX - leg.pawX) * K.STEP_SPEED * dt;
-      leg.pawZ += (leg.targetZ - leg.pawZ) * K.STEP_SPEED * dt;
-      leg.pawY = anc.floorY + stepHeight * liftArc;
-
-      // Fire paw step audio when paw lands (arc descending past threshold)
-      if (swingT > 0.7 && !_pawStepFired) {
-        foley.triggerPawStep(flow01);
-        _pawStepFired = true;
-      }
-    } else {
-      // Stance phase: paw is planted on the ground, slides back with belt
-      leg.pawX += (leg.targetX - leg.pawX) * 8 * dt;  // gentle correction
-      leg.pawZ += (leg.targetZ - leg.pawZ) * 6 * dt;
-      leg.pawY += (anc.floorY - leg.pawY) * 20 * dt;  // snap to ground
-      _pawStepFired = false;
+    // Initialize paw to anchor position on first frame (no wild lerp from origin)
+    if (!leg.inited) {
+      leg.pawX = targetX;
+      leg.pawZ = targetZ;
+      leg.pawY = anc.floorY;
+      leg.inited = true;
     }
+
+    // Smooth paw toward target — eases into position, never snaps
+    leg.pawX += (targetX - leg.pawX) * K.PAW_SMOOTH * dt;
+    leg.pawZ += (targetZ - leg.pawZ) * K.PAW_SMOOTH * dt;
+    leg.pawY += (targetY - leg.pawY) * K.PAW_GROUND_SNAP * dt;
+
+    // Audio: trigger paw step when paw lands (sin crosses zero going negative)
+    if (sinP < 0 && leg.lastSinP >= 0) {
+      foley.triggerPawStep(flow01);
+    }
+    leg.lastSinP = sinP;
 
     // IK: position the upper/lower/paw meshes
     positionLeg(i, anc.x, anc.y, anc.z, leg.pawX, leg.pawY, leg.pawZ);
