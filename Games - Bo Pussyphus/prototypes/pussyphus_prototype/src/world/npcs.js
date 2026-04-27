@@ -284,6 +284,14 @@ function buildNPC(type) {
     g.userData.armMesh = arm;
   }
 
+  // ── Contact shadow — dark ellipse at feet, grounds NPC on the step ──
+  const shadowGeo = new THREE.PlaneGeometry(0.22, 0.14);
+  const shadow = new THREE.Mesh(shadowGeo, M.npcShadow);
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.set(0, 0.005, 0);   // just above step surface
+  g.add(shadow);
+  g.userData.shadowMesh = shadow;
+
   // Initial tube shape — body starts above legs + hip
   updateNpcTube(bodyGeo, g.userData.radii, g.userData.height, 0, bodyBase, 0);
 
