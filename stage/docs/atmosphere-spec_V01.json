@@ -1,0 +1,59 @@
+{
+  "name": "Pussyphus stage v3 · the air in the atrium",
+  "version": "V01",
+  "date": "2026-11-27",
+  "asked": "it doesn't really have any shader or atmospheric effect on the scene as i had hoped. i think we need to widen the view port, and think about giving some more depth of field and even bigger scale to the mall. it's all very close and flat.",
+  "read": "A vast glass-vaulted atrium seen from a cat's height: the air carries the light, the far mall dissolves into it, the sun comes through the vault in slanted sheets, and only Bo, on her step, is sharp.",
+  "view": {
+    "stage_px": [720, 450],
+    "display": "1 CSS px per stage pixel, image-rendering: pixelated",
+    "camera": { "x": 0, "y": 0.9, "z": -0.9, "pitch_rad": 0.32, "f": 290, "cx": 360, "cy": 170 },
+    "frame_share": { "skylight": "about 0.2-0.25 of the frame height", "bo_height_px": "about 78 at z 0.62, 56 at z 1.0" }
+  },
+  "scale": {
+    "atrium": { "storefront_to_center_m": 7.0, "balcony_edge_to_center_m": 4.4, "floor_to_floor_m": 4.2, "shop_bay_m": 5.6, "store_depth_m": 3.0, "shopfront_scale": 1.55 },
+    "terraces": { "step_back_per_floor_m": 1.2, "floors": "two below the camera, three above, then a parapet", "reference": "J04: tiers stepping back" },
+    "vault": { "springing_m": 13.5, "radius_m": 10.6, "rib_spacing_m": 2.7, "heavy_truss_every": 3 },
+    "ground": "terrazzo with brass-ringed inlays, 8.4 m below the camera",
+    "trees": "five ficus rising 10-16 m from the ground floor, crowns around the escalator"
+  },
+  "sources": {
+    "depth": "view-space depth per stage pixel from the CPU ray cast (static scene, steps, figures, plants, Bo)",
+    "emissive": "alpha channel: lamps 255, neon 210, glints 150, lit sky 50, lit store interiors 70, warm lamp sprites 255",
+    "sky_state": "SKY.paint returns shaft (sun not behind a cloud, by weather and hour) and ambient; shaft is eased over about 2 s",
+    "hour_weather": "air density, air colour, sun colour, shadow and highlight tones"
+  },
+  "shared_causes": [
+    { "cause": "the air (density by weather x hour, colour by hour)", "drives": ["haze extinction with depth", "in-scatter of the sun shafts", "glow spread around lamps and neon", "the grade's shadow tone"] },
+    { "cause": "the depth buffer", "drives": ["haze", "the length of the shaft march", "the lens (circle of confusion)"] },
+    { "cause": "the vault's glazing (clear half of each truss bay, clear pane columns 2.8 m apart)", "drives": ["sun patches on floors and walls (CPU)", "the beams in the air (GPU)", "dust motes, drawn only where sunlit"] },
+    { "cause": "the sky's clouds over the sun", "drives": ["shaft strength", "relit sun patches"] }
+  ],
+  "pass_order": [
+    { "pass": "scene", "lane": "CPU ray cast into a typed array, ramps + Bayer 4x4", "why": "the pixel art itself; every surface keeps its ramp" },
+    { "pass": "air", "lane": "WebGL2 fragment", "what": "T = exp(-sigma * distance); colour = scene*T + air*(1-T); 14-sample march adds sun where the ray crosses lit air", "why": "the air sits in the world, before the lens" },
+    { "pass": "lens", "what": "depth of field focused on Bo; far blur up to 1.7 px, near up to 3.2 px; 24-tap disc; focus moves only when she moves 0.3 m", "why": "after the air, so the haze and the beams are blurred with what is behind them" },
+    { "pass": "glare", "what": "bright pass from the emissive channel at half resolution, separable blur whose reach grows with air density", "why": "after the lens, so out-of-focus lamps glow wider" },
+    { "pass": "grade", "what": "exposure (0.92 day, 0.75 night), split tone from shadow toward highlight by hour", "why": "mood, last before quantising" },
+    { "pass": "ordered dither", "what": "quantise to 64 levels a channel with the Bayer 4x4", "why": "last, so the image keeps the pixel grain and the haze never bands" }
+  ],
+  "parameters": {
+    "air_density_per_m": { "clear": 0.0045, "fair": 0.0065, "overcast": 0.009, "rain": 0.016, "snow": 0.013, "mist": 0.03, "night_multiplier": 1.5, "height_gain": 0.6 },
+    "shaft": { "samples": 14, "reach_m": 46, "amount": "0.5 x sky shaft; x0.35 in rain, snow, mist; 0 at night" },
+    "controls": { "Air": "0-2, multiplies density", "Depth of field": "0-2, multiplies both blur limits" }
+  },
+  "removal_test": {
+    "air": "the far mall and the bigger scale read close and flat again",
+    "shafts": "the vault stops putting light into the room; the skylight is only a picture above it",
+    "lens": "the focus on Bo goes and the depth hierarchy flattens",
+    "glare": "lamps and neon read as flat discs and bars, worst at night",
+    "grade": "dusk and night lose their temperature",
+    "dither": "the haze bands and the image stops reading as pixel art"
+  },
+  "refused": ["film grain (her ban on fat grain)", "chromatic aberration (no job here)", "vignette (the composition already leads to Bo)"],
+  "production": {
+    "fallback": "no WebGL2: the stage draws its CPU image directly, as in v2",
+    "reduced_motion": "everything in the pass is static per frame; the focus never animates without Bo moving",
+    "known_change": "with the pass on, output colours are no longer limited to the ramps; the ramps still shape every surface before the air"
+  }
+}

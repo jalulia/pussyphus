@@ -3,3 +3,8 @@
 dist/
 .build_tmp.js
 node_modules/
+
+# Desktop Bo engine subset: private, vendored by stage/tools/vendor-bzlite.sh
+stage/bzlite/*.js
+# renders and captures stay out of the repo
+stage/shots/

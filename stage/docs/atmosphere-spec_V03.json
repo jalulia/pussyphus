@@ -1,0 +1,209 @@
+{
+ "name": "Pussyphus stage v3 · the air in the atrium",
+ "version": "V03",
+ "date": "2026-11-27",
+ "asked": "it doesn't really have any shader or atmospheric effect on the scene as i had hoped. i think we need to widen the view port, and think about giving some more depth of field and even bigger scale to the mall. it's all very close and flat.",
+ "read": "A vast glass-vaulted atrium seen from a cat's height: the air carries the light, the far mall dissolves into it, the sun comes through the vault in slanted sheets, and only Bo, on her step, is sharp.",
+ "view": {
+  "stage_px": [
+   720,
+   450
+  ],
+  "display": "1 CSS px per stage pixel, image-rendering: pixelated",
+  "camera": {
+   "x": 1.5,
+   "y": 0.9,
+   "z": -0.4,
+   "pitch_rad": 0.32,
+   "yaw_rad": -0.24,
+   "f": 290,
+   "cx": 360,
+   "cy": 170,
+   "why": "off-axis over the void beside the belt, turned back toward it: the 8.4 m drop, the ground floor and both gallery walls read at once; the belt crosses the frame on a diagonal instead of a centered V"
+  },
+  "frame_share": {
+   "skylight": "about 0.2-0.25 of the frame height",
+   "bo_height_px": "about 45-55 px wide, side-on to three-quarter, at home z 0.85"
+  }
+ },
+ "scale": {
+  "atrium": {
+   "storefront_to_center_m": 7.0,
+   "balcony_edge_to_center_m": 4.4,
+   "floor_to_floor_m": 4.2,
+   "shop_bay_m": 5.6,
+   "store_depth_m": 3.0,
+   "shopfront_scale": 1.55
+  },
+  "terraces": {
+   "step_back_per_floor_m": 1.2,
+   "floors": "two below the camera, three above, then a parapet",
+   "reference": "J04: tiers stepping back"
+  },
+  "vault": {
+   "springing_m": 13.5,
+   "radius_m": 10.6,
+   "rib_spacing_m": 2.7,
+   "heavy_truss_every": 3
+  },
+  "ground": "terrazzo with brass-ringed inlays, 8.4 m below the camera",
+  "trees": "five ficus rising 10-16 m from the ground floor, crowns around the escalator"
+ },
+ "sources": {
+  "depth": "view-space depth per stage pixel from the CPU ray cast (static scene, steps, figures, plants, Bo)",
+  "emissive": "alpha channel: lamps 255, neon 210, glints 150, lit sky 50, lit store interiors 70, warm lamp sprites 255",
+  "sky_state": "SKY.paint returns shaft (sun not behind a cloud, by weather and hour) and ambient; shaft is eased over about 2 s",
+  "hour_weather": "air density, air color, sun color, shadow and highlight tones"
+ },
+ "shared_causes": [
+  {
+   "cause": "the air (density by weather x hour, color by hour)",
+   "drives": [
+    "haze extinction with depth",
+    "in-scatter of the sun shafts",
+    "glow spread around lamps and neon",
+    "the grade's shadow tone"
+   ]
+  },
+  {
+   "cause": "the depth buffer",
+   "drives": [
+    "haze",
+    "the length of the shaft march",
+    "the lens (circle of confusion)"
+   ]
+  },
+  {
+   "cause": "the vault's glazing (clear half of each truss bay, clear pane columns 2.8 m apart)",
+   "drives": [
+    "sun patches on floors and walls (CPU)",
+    "the beams in the air (GPU)",
+    "dust motes, drawn only where sunlit"
+   ]
+  },
+  {
+   "cause": "the sky's clouds over the sun",
+   "drives": [
+    "shaft strength",
+    "relit sun patches"
+   ]
+  }
+ ],
+ "pass_order": [
+  {
+   "pass": "scene",
+   "lane": "CPU ray cast into a typed array, ramps + Bayer 4x4",
+   "why": "the pixel art itself; every surface keeps its ramp"
+  },
+  {
+   "pass": "air",
+   "lane": "WebGL2 fragment",
+   "what": "T = exp(-sigma * distance); color = scene*T + air*(1-T); 14-sample march adds sun where the ray crosses lit air",
+   "why": "the air sits in the world, before the lens"
+  },
+  {
+   "pass": "lens",
+   "what": "depth of field focused on Bo; her +-0.45 m band stays sharp; far blur up to about 1 px, near up to 3 px; 24-tap disc",
+   "why": "after the air, so the haze and the beams are blurred with what is behind them"
+  },
+  {
+   "pass": "glare",
+   "what": "bright pass from the emissive channel at half resolution, separable blur whose reach grows with air density",
+   "why": "after the lens, so out-of-focus lamps glow wider"
+  },
+  {
+   "pass": "grade",
+   "what": "exposure (0.94 day, 0.84 night), split tone from shadow toward highlight by hour",
+   "why": "mood, last before quantizing"
+  },
+  {
+   "pass": "ordered dither",
+   "what": "quantize to 64 levels a channel with the Bayer 4x4, then the oxblood guard snaps any pixel in the band",
+   "why": "last, so the image keeps the pixel grain and the haze never bands"
+  }
+ ],
+ "parameters": {
+  "air_density_per_m": {
+   "clear": 0.0095,
+   "fair": 0.0125,
+   "overcast": 0.015,
+   "rain": 0.02,
+   "snow": 0.017,
+   "mist": 0.034,
+   "night_multiplier": 0.7,
+   "height_gain": 0.6
+  },
+  "shaft": {
+   "samples": 14,
+   "reach_m": 46,
+   "amount": "2.2 x sky shaft; x0.35 in rain, snow, mist; 0 at night",
+   "pane_mask": "bay3 0.14-0.60 of three ribs, bx 0.18-0.46 of 2.8 m, ribs and purlins cut out",
+   "phase": "0.55 + 1.6 * max(0, view.sun)^3 (forward scattering)",
+   "thick_air_gain": "x(1 + 0.6(1-T))"
+  },
+  "controls": {
+   "Air": "0-2, multiplies density",
+   "Depth of field": "0-2, multiplies both blur limits"
+  },
+  "air_color": {
+   "day": [
+    0.86,
+    0.86,
+    0.82
+   ],
+   "sun": [
+    1.0,
+    0.9,
+    0.72
+   ],
+   "ambient_air_with_sun_out": "x0.68 (the air between beams is the dimmer sky-lit air)"
+  },
+  "lens": {
+   "focus": "Bo's depth; CoC 0 within +-0.45 m of it",
+   "far_max_px": "1.05 x Depth of field",
+   "near_max_px": "3.0 x Depth of field",
+   "far_ramp": "smoothstep(0.15, 0.85, 1 - (f+0.45)/z)"
+  },
+  "night": {
+   "exposure": "0.94 - 0.10 night",
+   "bloom": "0.55 + 1.3 night",
+   "walls": "nightwall ramp #3a4252-#848c9a, nighttrim #4e5767-#a5acb7, Bayer-dithered in at min(1, 1.15 night)",
+   "cpu_k": "x(1 - 0.45 night) on non-emissive surfaces",
+   "lower_floors": "ground floor and lower galleries fall off a further 42% at night (wy < -1), terrazzo swaps to nightterr #2e3546-#6a7180"
+  },
+  "oxblood_guard": {
+   "where": "FS_FINAL: after grade and before the 64-level dither; again after the dither, snapped to the nearest level with no dither",
+   "band_caught": "OKLab L 0.15-0.49, C > 0.05, hue 4-38 (margins around the banned L .18-.46, C >= .07, hue 8-34)",
+   "action": "chroma set to 0.03 at the same L and hue",
+   "scan": "0 px in the banned band across 47 renders: clear at 17,18,19,20,21,22,23,0,2,4,6 h; rain, fair, snow at 18,21,23,3 h; six weathers at 7,10.5,14,16.5 h"
+  }
+ },
+ "removal_test": {
+  "air": "the far mall and the bigger scale read close and flat again",
+  "shafts": "the vault stops putting light into the room; the skylight is only a picture above it",
+  "lens": "the focus on Bo goes and the depth hierarchy flattens",
+  "glare": "lamps and neon read as flat discs and bars, worst at night",
+  "grade": "dusk and night lose their temperature",
+  "dither": "the haze bands and the image stops reading as pixel art"
+ },
+ "refused": [
+  "film grain (her ban on fat grain)",
+  "chromatic aberration (no job here)",
+  "vignette (the composition already leads to Bo)"
+ ],
+ "production": {
+  "fallback": "no WebGL2: the stage draws its CPU image directly, as in v2",
+  "reduced_motion": "everything in the pass is static per frame; the focus never animates without Bo moving",
+  "known_change": "with the pass on, output colors are no longer limited to the ramps; the ramps still shape every surface before the air"
+ },
+ "supersedes": "atmosphere-spec_V02.json (kept); V03 corrects stale pass-order text and US spelling",
+ "round3_fixes": [
+  "Q3-01 oxblood guard",
+  "Q3-02 beams: high-contrast pane mask, forward scattering, dimmer ambient air between beams",
+  "Q3-03 air about 2x by day, warmer",
+  "Q3-04 far blur capped at ~1 px",
+  "Q3-05 night: dark plaster ramps, lights and bloom carry it",
+  "Q3-07 Bo's depth band always sharp",
+  "Q3-09 off-axis camera, ground-floor walkers"
+ ]
+}

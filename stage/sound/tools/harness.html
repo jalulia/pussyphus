@@ -1,0 +1,23 @@
+<!doctype html><meta charset="utf-8"><title>mallfm render harness</title>
+<script>window.addEventListener("unhandledrejection", e => console.error("unhandled: " + (e.reason && e.reason.stack || e.reason))); window.addEventListener("error", e => console.error("error: " + e.message));</script>
+<script src="../mallfm.js"></script>
+<script>
+// render one track and hand back 16-bit interleaved PCM as base64, plus float stats
+window.renderTrack = async function (id, seconds, seed) {
+  const t0 = performance.now();
+  const buf = await MALLFM._render(id, seconds, { seed: seed, sampleRate: 48000 });
+  const ms = performance.now() - t0;
+  const L = buf.getChannelData(0), R = buf.getChannelData(1), n = L.length;
+  const pcm = new Int16Array(n * 2); let peak = 0, over = 0, nan = 0;
+  for (let i = 0; i < n; i++) {
+    const l = L[i], r = R[i];
+    if (!isFinite(l) || !isFinite(r)) nan++;
+    const a = Math.max(Math.abs(l), Math.abs(r)); if (a > peak) peak = a; if (a > 0.8) over++;
+    pcm[2 * i] = Math.max(-32768, Math.min(32767, Math.round(l * 32767)));
+    pcm[2 * i + 1] = Math.max(-32768, Math.min(32767, Math.round(r * 32767)));
+  }
+  const bytes = new Uint8Array(pcm.buffer); let s = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return { b64: btoa(s), peak, over, nan, ms, sr: buf.sampleRate, frames: n };
+};
+</script>
