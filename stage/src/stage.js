@@ -44,16 +44,16 @@ var STAGE = window.STAGE || (window.STAGE = {});
     const S = [];
     for (const s of [-1, 1]) {
       // skirt with brass cap
-      S.push({ ax: 0, v: s * G.HALF, test: (x, y, z) => z > -2 && y > surf(z) - 0.35 && y < surf(z) + 0.13, paint: (x, y, z) => {
+      S.push({ ax: 0, v: s * G.HALF, test: (x, y, z) => z > -2 && z < G.BELT_END && y > surf(z) - 0.35 && y < surf(z) + 0.13, paint: (x, y, z) => {
         const h = y - surf(z); if (h > 0.105) return ['brass', s < 0 ? 0.78 : 0.5];
         return ['steel', (s < 0 ? 0.6 : 0.34) + (fr((z - 0.6 * y) * 0.9) < 0.05 ? 0.18 : 0)]; } });
       // glass balustrade, screen-door with reflection streaks and panel joints
-      S.push({ ax: 0, v: s * G.GLX, test: (x, y, z) => z > -2 && y > surf(z) + 0.13 && y < surf(z) + 0.95, paint: (x, y, z, sx, sy) => {
+      S.push({ ax: 0, v: s * G.GLX, test: (x, y, z) => z > -2 && z < G.BELT_END && y > surf(z) + 0.13 && y < surf(z) + 0.95, paint: (x, y, z, sx, sy) => {
         const streak = fr((y * 1.2 - z * 0.55) * 0.9) < 0.06, joint = Math.abs(fr(z / 1.4) - 0.5) > 0.49;
         if (joint) return ['steel', s < 0 ? 0.72 : 0.46];
         return null; }, tint: (x, y, z) => 0.06 + (fr((y * 1.2 - z * 0.55) * 0.9) < 0.06 ? 0.16 : 0) });
       // handrail band (animated highlight -> RAIL)
-      S.push({ ax: 0, v: s * (G.GLX - 0.01), test: (x, y, z) => z > -2 && y >= surf(z) + 0.95 && y < surf(z) + 1.05, paint: (x, y, z) => {
+      S.push({ ax: 0, v: s * (G.GLX - 0.01), test: (x, y, z) => z > -2 && z < G.BELT_END && y >= surf(z) + 0.95 && y < surf(z) + 1.05, paint: (x, y, z) => {
         const h = (y - surf(z) - 0.95) / 0.1; return ['rubber', (h > 0.78 ? 0.86 : h < 0.14 ? 0.52 : 0.3 + 0.28 * h) + (s < 0 ? 0.05 : 0), TAG.RAIL]; /* underside lifted by bounce light off the steps; lit lip on top */ } });
       // the canyon walls: stacked levels of storefronts
       for (let l = -2; l <= G.TOPLVL; l++) S.push({ ax: 0, v: s * WX(l), test: (x, y) => LV(y) === l || (l === -2 && y < -2 * G.LEVEL) || (l === G.TOPLVL && y >= l * G.LEVEL && y < G.VAULT_Y), paint: (x, y, z, sx, sy, fp) => y < G.VAULT_Y ? wall(s, y, z, sx, sy, fp) : null });
@@ -84,11 +84,33 @@ var STAGE = window.STAGE || (window.STAGE = {});
       if (fp < 0.06 && Math.abs(rr - 2.4) < 0.05) return ['brass', 0.6];
       if (rr < 2.4) return [Math.floor(Math.atan2(z - cz, x) / (Math.PI / 6)) & 1 ? 'pteal' : 'terr', 0.45 + 0.2 * (1 - rr / 2.4)];
       return ['terr', 0.42 + (fp < 0.03 && Math.abs(fr(z / 1.4) - 0.5) > 0.48 ? 0.15 : 0)]; } });
-    // the escalator's outer cladding under the glass, down to the truss
-    for (const s of [-1, 1]) S.push({ ax: 0, v: s * (G.GLX + 0.03), test: (x, y, z) => z > -2 && y > surf(z) - 1.05 && y < surf(z) + 0.13, paint: (x, y, z, sx, sy, fp) => {
-      const h = y - surf(z); if (h > 0.08) return ['brass', s < 0 ? 0.75 : 0.45]; if (h < -0.98) return ['steel', 0.25];
-      const u = z + 1.6 * h, refl = Math.max(0, Math.sin(0.37 * u) + 0.6 * Math.sin(0.93 * u + 1.3) - 0.55);   /* brushed steel: soft, uneven reflections of the hall sliding along it */
-      return ['steel', (s < 0 ? 0.62 : 0.4) + (fp < 0.02 && Math.abs(fr(z / 1.2) - 0.5) > 0.485 ? -0.15 : 0) + 0.16 * (h + 1) + 0.14 * refl - (h > -0.06 ? 0.1 : 0)]; } });
+    // the escalator's truss, glazed (a see-through escalator): a steel frame with glass between its members, so the
+    // returning steps, the lit tray and the mall behind show through instead of a blank steel slab
+    for (const s of [-1, 1]) S.push({ ax: 0, v: s * (G.GLX + 0.03), test: (x, y, z) => z > -2 && z < G.BELT_END && y > surf(z) - 1.05 && y < surf(z) + 0.13, paint: (x, y, z, sx, sy, fp) => {
+      const h = y - surf(z); if (h > 0.08) return ['brass', s < 0 ? 0.75 : 0.45];
+      if (h > -0.1) return ['steel', (s < 0 ? 0.6 : 0.38) + 0.1 * (h + 0.1) / 0.18];              // top chord
+      if (h < -0.95) return ['steel', s < 0 ? 0.42 : 0.24];                                        // bottom chord
+      const bayL = 1.68, u = fr(z / bayL), post = Math.abs(u - 0.5) > 0.465;                       // posts every 1.68 m (four steps)
+      const v = (h + 0.95) / 0.85, diag = Math.abs((u < 0.5 ? u * 2 : (1 - u) * 2) - v) < 0.05 * (1 + fp * 12);   // one Warren diagonal per bay
+      if (post || diag) return ['steel', (s < 0 ? 0.55 : 0.32) + 0.12 * v];
+      return null; }, tint: (x, y, z) => 0.05 });
+    // inside the truss: the steps' return run (upside down, rollers showing) and the lit tray under it
+    S.push({ slope: G.RISE / G.RUN, c: -0.55, test: (x, y, z) => Math.abs(x) < G.HALF && z > -2 && z < G.BELT_END, paint: (x, y, z, sx, sy, fp) => {
+      const k = fr(z / G.RUN); if (k < 0.07) return ['safety', 0.32];                                // step edges, yellow, upside down
+      if (Math.abs(Math.abs(x) - 0.44) < 0.035 && Math.abs(k - 0.5) < 0.1) return ['steel', 0.75];  // roller wheels
+      return ['rubber', 0.26 + 0.14 * k]; } });
+    S.push({ slope: G.RISE / G.RUN, c: -0.98, test: (x, y, z) => Math.abs(x) < G.GLX && z > -2 && z < G.BELT_END, paint: (x, y, z, sx, sy, fp) => {
+      if (Math.abs(x) < 0.05 && fr(z / 2.4) < 0.5) return ['warm', 0.9, TAG.LAMP, 700 + Math.floor(z)];  // a lit strip down the tray
+      return ['steel', 0.3 + 0.05 * Math.abs(x)]; } });
+    // the bridge at level 3 where the belt tops out: fascia facing us and a soffit with downlights, spanning the void
+    { const BE = G.BELT_END, BY = G.TOPLVL * G.LEVEL, BW = SX(G.TOPLVL) + 0.02, BD = 3.0;
+      S.push({ ax: 2, v: BE, test: (x, y, z) => Math.abs(x) < BW && y > BY - 0.55 && y < BY + 0.05, paint: (x, y, z, sx, sy, fp) => {
+        const ly = y - BY; if (ly > 0.0) return ['brass', 0.7]; if (ly < -0.52) return ['warm', 0.95];
+        if (Math.abs(x) < G.HALF + 0.05 && ly > -0.12) return ['steel', 0.7];                 // the comb plate where the treads go under
+        return ['pteal', 0.42 + 0.2 * ((ly + 0.52) / 0.52)]; } });
+      S.push({ ax: 1, v: BY - 0.55, test: (x, y, z) => Math.abs(x) < BW && z > BE && z < BE + BD, paint: (x, y, z, sx, sy, fp) => {
+        if (Math.abs(fr(x / 2.2) - 0.5) < 0.03 && Math.abs(z - BE - BD / 2) < 0.06) return ['warm', 0.95, TAG.LAMP, 900 + Math.round(x)];
+        return ['trim', 0.3]; } }); }
     // the glazed barrel vault over the atrium: arch ribs every 1.35 m, purlins every 12 degrees, a heavier rib every third arch
     S.push({ vault: true, paint: (x, y, z, sx, sy, fp) => {
       const a = Math.atan2(x, y - G.VAULT_Y), az = fr(z / G.RIB), aa = fr((a + Math.PI / 2) / (Math.PI / 21));
@@ -176,6 +198,8 @@ var STAGE = window.STAGE || (window.STAGE = {});
         if (disc < 0 || a < 1e-9) continue; const t = (-b + Math.sqrt(disc)) / (2 * a); if (t <= 0.05 || t >= bt) continue;
         const x = o[0] + d[0] * t, y = o[1] + d[1] * t, z = o[2] + d[2] * t; if (y < G.VAULT_Y) continue;
         const p = s.paint(x, y, z, sx, sy, t / CAM.f); if (p) { best = { t, p, x, y, z }; bt = t; } continue; }
+      if (s.slope != null) { const den = d[1] - s.slope * d[2]; if (Math.abs(den) < 1e-6) continue; const t = (s.c + s.slope * o[2] - o[1]) / den; if (t <= 0.05 || t >= bt) continue;
+        const x = o[0] + d[0] * t, y = o[1] + d[1] * t, z = o[2] + d[2] * t; if (!s.test(x, y, z)) continue; const p = s.paint(x, y, z, sx, sy, (t / CAM.f) / Math.max(0.06, Math.abs(den)), o, d, t); if (p) { best = { t, p, x, y, z }; bt = t; } continue; }
       const dv = d[s.ax]; if (Math.abs(dv) < 1e-6) continue;
       if (s.mod) {
         const off = s.off || 0, dir = dv > 0 ? 1 : -1, l0 = Math.floor((o[1] - off) / s.mod) + (dv > 0 ? 1 : 0);
@@ -211,6 +235,7 @@ var STAGE = window.STAGE || (window.STAGE = {});
     let u = o[2] / G.RUN + fp, k = Math.floor(u), tEnter = 0;
     if (kStart != null && kStart > k) { k = kStart; tEnter = Math.max(0, ((k - fp) * G.RUN - o[2]) / d[2]); }
     for (let i = 0; i < 160; i++) {
+      if ((k - fp) * G.RUN > G.BELT_END) return 1e9;   // the belt ends at the bridge
       const tExit = ((k + 1 - fp) * G.RUN - o[2]) / d[2];
       if (tEnter > tmax) return 1e9;
       // tread at height (k - fp) * RISE within this cell
@@ -297,7 +322,33 @@ var STAGE = window.STAGE || (window.STAGE = {});
     }
     // print the still (far) plants into the static layer
     for (const p of W0.plants) drawPlant(B.base, B.t, p, 0, true, 'static');
+    STAGE.ghost = buildGhost();
   };
+  // the hint of a second escalator: from the bridge it turns off to the right and climbs into the light, seen side-on,
+  // screen-door thin and thinning as it rises, so it never resolves. Cached here, laid over the sky each frame.
+  function buildGhost() {
+    const BY = G.TOPLVL * G.LEVEL, ZG = G.BELT_END + 1.6, x0 = 0.9, x1 = 9.6, yb = x => BY + Math.max(0, x - x0 - 0.6) * 0.5;
+    const pts = [[x0, BY - 0.9], [x1, yb(x1) + 1.05], [x0, yb(x1) + 1.05], [x1, BY - 0.9]].map(([x, y]) => PS.project(x, y, ZG));
+    if (pts.some(p => p[2] <= 0.1)) return null;
+    const sx0 = Math.max(0, Math.floor(Math.min(...pts.map(p => p[0])))), sx1 = Math.min(W - 1, Math.ceil(Math.max(...pts.map(p => p[0]))));
+    const sy0 = Math.max(0, Math.floor(Math.min(...pts.map(p => p[1])))), sy1 = Math.min(H - 1, Math.ceil(Math.max(...pts.map(p => p[1]))));
+    const ks = [], ts = [], rgb = [], tmp = new Uint8ClampedArray(4), nt = STAGE.nightAmt || 0;
+    for (let sy = sy0; sy <= sy1; sy++) for (let sx = sx0; sx <= sx1; sx++) {
+      const d = PS.ray(sx, sy), t = (ZG - CAM.z) / d[2]; if (!(t > 0)) continue; const k = sy * W + sx; if (t >= B.t[k]) continue;
+      const x = CAM.x + d[0] * t, y = CAM.y + d[1] * t; if (x < x0 || x > x1) continue;
+      const u = (x - x0) / (x1 - x0), b = yb(x), h = y - b; if (h < -0.85 || h > 1.0) continue;
+      const a = 0.85 * Math.pow(Math.sin(Math.PI * Math.min(1, u * 1.25)), 0.7);     // comes out of the light, then thins away
+      if (bay(sx + 5, sy + 3) >= ((h > 0.9 || h < -0.8) ? Math.min(1, a * 1.8) : a * 0.7)) continue;   // the handrail and underside lines hold longest
+      let r, L;
+      if (h > 0.9) { r = 'rubber'; L = 0.18; }                                      // handrail: the line that reads first
+      else if (h > 0.0) { if (bay(sx + 1, sy + 6) > 0.22) continue; r = 'steel'; L = 0.82; }   // glass: barely there
+      else if (h > -0.06) { r = 'safety'; L = 0.6; }                                // the step line
+      else if (h < -0.8) { r = 'steel'; L = 0.36; }                                 // underside edge
+      else { r = 'steel'; L = 0.64 + 0.1 * (h + 0.8); }                             // truss side panel
+      writeRGB(tmp, 0, r, L * (1 - 0.35 * nt), sx, sy, 0);
+      ks.push(k); ts.push(t); rgb.push(tmp[0], tmp[1], tmp[2]); }
+    return { k: Int32Array.from(ks), t: Float32Array.from(ts), rgb: Uint8Array.from(rgb) };
+  }
 
   // ── moving things: shoppers on the steps, figures in the stores and on the balconies, plants, dust ──
   const W0 = { shoppers: [], figures: [], plants: [], dust: [] };
@@ -553,6 +604,7 @@ var STAGE = window.STAGE || (window.STAGE = {});
     else if (STAGE.skyCache && STAGE.skyCacheValid) { for (let i = 0; i < B.skyList.length; i++) { const k = B.skyList[i]; out[k * 4] = STAGE.skyCache[i * 3]; out[k * 4 + 1] = STAGE.skyCache[i * 3 + 1]; out[k * 4 + 2] = STAGE.skyCache[i * 3 + 2]; } }
     if (st.skyNow && window.SKY) STAGE.skyCacheValid = true;
     mark('sky');
+    { const g = STAGE.ghost; if (g) for (let i = 0; i < g.k.length; i++) { const k = g.k[i]; if (g.t[i] >= depth[k]) continue; depth[k] = g.t[i]; out[k * 4] = g.rgb[i * 3]; out[k * 4 + 1] = g.rgb[i * 3 + 1]; out[k * 4 + 2] = g.rgb[i * 3 + 2]; } }
     // the steps
     const cand = B.stairCand;
     // steps: cached per quantized belt phase (48 per step), rebuilt when the light is rebaked

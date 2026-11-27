@@ -23,7 +23,7 @@
     $('loading').style.display = 'none';
     bo = window.BOMO ? (BOMO.init({ homeZ: 0.85, zMin: 0.68, zMax: 1.8, reduced: S.reduced }), BOMO) : placeholderBo(); if (window.BOMO) bo.drawsShadow = true; // BOMO paints its own contact shadow
     boCv = document.createElement('canvas'); boCv.width = PS.W; boCv.height = PS.H; bg = boCv.getContext('2d', { willReadFrequently: true });
-    for (const z of [3.2, 6.6, 10.1]) spawnShopper(z);
+    for (const z of [3.2, 7.4, 12.5, 18.5]) spawnShopper(z);
     draw(true); if (STAGE.warmStairs) STAGE.warmStairs(); // light the 48 belt phases now, not during the first two seconds of play
     if (q.get('run') !== '0') requestAnimationFrame(loop); else { draw(true); }
     window.__ready = true;
@@ -79,7 +79,7 @@
     for (let i = W0.shoppers.length - 1; i >= 0; i--) if (W0.shoppers[i].z < 0.34) W0.shoppers.splice(i, 1);
     if (bo) { const bs = bo.state(); for (const sh of W0.shoppers) { const tgt = sh.z < 3.6 && sh.z > bs.wz ? Math.max(-1, Math.min(1, (bs.wx - sh.x) * 5)) : 0; sh.look = (sh.look || 0) + (tgt - (sh.look || 0)) * Math.min(1, dt * 1.5); } } // riders near her glance down at the cat
     const crowd = (S.weather === 'rain' || S.weather === 'snow') ? 0.6 : 1; // weather drives footfall (research PX-TOWER-02)
-    if (W0.shoppers.length < 3 * crowd && Math.random() < dt * 0.22 * crowd) spawnShopper(11 + Math.random() * 3);
+    if (W0.shoppers.length < 4 * crowd && Math.random() < dt * 0.22 * crowd) spawnShopper(19 + Math.random() * 4);   // riders come down out of the bright air at the top
     while (acc >= 0.033) { acc -= 0.033; bo.tick({ phase: S.phase, beltSpeed: S.beltSpeed, shoppers: W0.shoppers.map(s => ({ wx: s.x, wz: s.z, half: 0.2 })), input, flow: 6 }); }
     alt = Math.floor(S.phase);
   }

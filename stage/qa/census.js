@@ -5,7 +5,7 @@ const glob = require('fs').readdirSync('/opt/pw-browsers').find(d => d.startsWit
   const secs = +(process.argv[2] || 300);
   const b = await chromium.launch({ executablePath: `/opt/pw-browsers/${glob}/chrome-linux64/chrome`, args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const p = await b.newPage({ viewport: { width: 1280, height: 900 } }); const errs = []; p.on('pageerror', e => errs.push(e.message));
-  await p.goto('http://localhost:8733/index.html?run=0&hour=14&post=0'); await p.waitForFunction(() => window.__ready, null, { timeout: 120000 });
+  await p.goto(`http://localhost:${process.env.PORT || 8733}/index.html?run=0&hour=14&post=0${process.env.EXTRA || ''}`); await p.waitForFunction(() => window.__ready, null, { timeout: 120000 });
   const r = await p.evaluate((secs) => { const beh = {}, anim = {}; let n = 0, off = 0, zmin = 9, zmax = -9, xmin = 9, xmax = -9, thMin = 9, thMax = -9, near = 0, starts = {}, prev = null;
     for (let i = 0; i < secs * 10; i++) { window.__step(0.1, 30, false); const s = BOMO.state(); n++; beh[s.behavior] = (beh[s.behavior] || 0) + 1; const a = (s.anim || '').split(':')[0]; anim[a] = (anim[a] || 0) + 1;
       if (s.behavior !== prev) { starts[s.behavior] = (starts[s.behavior] || 0) + 1; prev = s.behavior; }

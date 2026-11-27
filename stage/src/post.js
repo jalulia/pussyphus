@@ -33,6 +33,7 @@ var POST = window.POST || (window.POST = {});
   uniform vec4 uVault;        // VAULT_Y, RIB, sunDX, vaultR
   uniform vec4 uAirK;         // density, height gain, shaft amount, shaft reach (m)
   uniform float uTime; uniform int uDebug;
+  uniform vec4 uBank; uniform vec3 uBankK;   // the bright air at the top of the belt: center, radius; density per m, brightness, sun share
   bool sunlit(vec3 p) {
     if (p.y > uVault.x + 1.0) return false;
     float s = (uVault.x + 1.6 - p.y) / uLight.y; float qx = p.x + uLight.x * s + uVault.z, qz = p.z + uLight.z * s;
@@ -60,6 +61,14 @@ var POST = window.POST || (window.POST = {});
     float mu = dot(normalize(d), uLight); float phase = 0.55 + 1.6 * pow(max(0.0, mu), 3.0);   // forward scattering: beams brighten looking toward the sun
     float shaft = acc / 14.0 * uAirK.z * phase * min(1.0, reach / 12.0);
     col += uSunCol * shaft * (1.0 + 0.6 * (1.0 - T));   // lit air glows more where there is more of it
+    // the top of the belt climbs into a bank of bright air and never comes out of it
+    { vec3 sc = uBank.w * vec3(1.0, 0.7, 1.15); vec3 o2 = (uCamPos - uBank.xyz) / sc, d2 = d / sc;
+      float a = dot(d2, d2), b = dot(o2, d2), cc = dot(o2, o2) - 1.0, disc = b * b - a * cc;
+      if (disc > 0.0) { float sq = sqrt(disc), t0 = max(0.0, (-b - sq) / a), t1 = min(far, (-b + sq) / a);
+        if (t1 > t0) { float tm = clamp(-b / a, t0, t1); vec3 pm = o2 + d2 * tm; float core = 1.0 - clamp(dot(pm, pm), 0.0, 1.0);
+          float Tb = exp(-uBankK.x * (t1 - t0) * length(d) * (0.25 + 0.75 * core * core));
+          vec3 bc = mix(uAir, uSunCol * uBankK.y, uBankK.z);
+          col = col * Tb + bc * (1.0 - Tb); } } }
     if (uDebug == 1) col = vec3(shaft * 3.0); if (uDebug == 2) col = vec3(T);
     o = vec4(col, c.a);
   }`;
@@ -157,6 +166,7 @@ var POST = window.POST || (window.POST = {});
   const AIR = { clear: 0.0095, fair: 0.0125, overcast: 0.015, rain: 0.02, snow: 0.017, mist: 0.034 };
   const mix3 = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
   const ease = (h, a, b) => Math.max(0, Math.min(1, (h - a) / (b - a)));
+  POST.bank = { x: 0.2, y: 14.0, dz: 2.4, r: 6.4, density: 0.22 };   // tuned by eye in renders; Art owns these numbers from ART-R1-01
   POST.airFor = function (hour, weather, shaft, airK = 1) {
     const night = Math.max(1 - ease(hour, 5.0, 6.8), ease(hour, 19.8, 21.4)), dusk = ease(hour, 16.6, 18.2) * (1 - ease(hour, 19.6, 20.8)), dawn = ease(hour, 5.2, 6.4) * (1 - ease(hour, 7.6, 8.8));
     let air = [0.86, 0.86, 0.82], sun = [1.0, 0.9, 0.72], sh = [0.47, 0.5, 0.53], hi = [0.53, 0.51, 0.48];
@@ -184,7 +194,8 @@ var POST = window.POST || (window.POST = {});
     gl.uniform2f(P.u.uRes, W, H); gl.uniform4f(P.u.uCam, CAM.cx, CAM.cy, CAM.f, CAM.pitch); gl.uniform1f(P.u.uYaw, CAM.yaw || 0); gl.uniform3f(P.u.uCamPos, CAM.x, CAM.y, CAM.z);
     gl.uniform3f(P.u.uLight, PS.LIGHT[0], PS.LIGHT[1], PS.LIGHT[2]); gl.uniform3fv(P.u.uAir, A.air); gl.uniform3fv(P.u.uSunCol, A.sun);
     gl.uniform4f(P.u.uSunWin, sun.win.x0, sun.win.x1, sun.win.z0, sun.win.z1); gl.uniform4f(P.u.uVault, G.VAULT_Y, G.RIB, sun.dx, G.VAULT_R);
-    gl.uniform4f(P.u.uAirK, A.density, 0.6, 2.2 * A.shaft, 46); gl.uniform1f(P.u.uTime, p.time || 0); gl.uniform1i(P.u.uDebug, POST.debug | 0);
+    gl.uniform4f(P.u.uAirK, A.density, 0.6, 2.2 * A.shaft, 46);
+    { const nt = A.night || 0, BK = POST.bank; gl.uniform4f(P.u.uBank, BK.x, BK.y, G.BELT_END + BK.dz, BK.r); gl.uniform3f(P.u.uBankK, BK.density * (p.bank ?? 1), 1.12 - 0.5 * nt, (0.35 + 0.5 * Math.min(1, A.shaft)) * (1 - nt)); } gl.uniform1f(P.u.uTime, p.time || 0); gl.uniform1i(P.u.uDebug, POST.debug | 0);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     // 2 lens
     P = progs.dof; gl.useProgram(P.p); gl.bindFramebuffer(gl.FRAMEBUFFER, fbo.dof);

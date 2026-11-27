@@ -6,16 +6,17 @@ var PS = window.PS || (window.PS = {});
 (function () {
   PS.W = 720; PS.H = 450;
   // camera: fixed. World units ~ meters. +z goes up the escalator (away from camera), +y up, +x right.
-  PS.CAM = { x: 1.5, y: 0.9, z: -0.4, pitch: 0.32, yaw: -0.24, f: 290, cx: 360, cy: 170 };   // off-axis, over the void beside the belt, turned back toward it: the drop, the ground floor and the far galleries open on the right  // round 3: a wide landscape view, pitched up so the skylight gets about a quarter of the frame
+  PS.CAM = { x: 1.5, y: 0.9, z: -0.4, pitch: 0.32, yaw: -0.24, f: 296, cx: 360, cy: 170 };   // off-axis, over the void beside the belt, turned back toward it: the drop, the ground floor and the far galleries open on the right  // round 3: a wide landscape view, pitched up so the skylight gets about a quarter of the frame
   // escalator + atrium geometry
   PS.G = { RUN: 0.42, RISE: 0.21, HALF: 0.56, GLX: 0.62, SLABX: 4.4, WALLX: 7.0, LEVEL: 4.2, BAYZ: 5.6, SKY_Y: 15.6, INTERIOR: 3.0, TOPLVL: 3, VAULT_Y: 13.5, RIB: 2.7, SF: 1.55, GROUND: -8.4 };  // round 3: a 14 m atrium, 4.2 m floors, 5.6 m shop bays; SF scales the shopfront  // walls end at the TOPLVL slab + parapet; a glazed barrel vault (radius WALLX) springs at VAULT_Y
-  PS.G.STEP = 1.2;                                                        // each floor above the camera's steps back 1.2 m (J04: tiers stepping back)
+  PS.G.STEP = 1.2; PS.G.BELT_END = 25.2;   // the belt tops out at the level-3 bridge (y 12.6), inside a bank of bright air
+                                                         // each floor above the camera's steps back 1.2 m (J04: tiers stepping back)
   PS.wallX = (l) => PS.G.WALLX + PS.G.STEP * Math.max(0, l); PS.slabX = (l) => PS.G.SLABX + PS.G.STEP * Math.max(0, l);
   PS.G.VAULT_R = PS.wallX(PS.G.TOPLVL);                                   // the vault springs from the top parapet
   PS.LIGHT = (() => { const v = [0.55, 0.78, 0.32]; const n = Math.hypot(...v); return v.map(x => x / n); })();
 
   let cp, sp, cyw, syw; PS.setCam = (o) => { Object.assign(PS.CAM, o || {}); cp = Math.cos(PS.CAM.pitch); sp = Math.sin(PS.CAM.pitch); cyw = Math.cos(PS.CAM.yaw || 0); syw = Math.sin(PS.CAM.yaw || 0); }; PS.setCam();
-  const q = new URLSearchParams(typeof location !== 'undefined' ? location.search : ''); if (q.get('camx')) PS.setCam({ x: +q.get('camx') }); if (q.get('yaw')) PS.setCam({ yaw: +q.get('yaw') }); if (q.get('camz')) PS.setCam({ z: +q.get('camz') }); if (q.get('camy')) PS.setCam({ y: +q.get('camy') });
+  const q = new URLSearchParams(typeof location !== 'undefined' ? location.search : ''); if (q.get('camx')) PS.setCam({ x: +q.get('camx') }); if (q.get('yaw')) PS.setCam({ yaw: +q.get('yaw') }); if (q.get('camz')) PS.setCam({ z: +q.get('camz') }); if (q.get('camy')) PS.setCam({ y: +q.get('camy') }); if (q.get('f')) PS.setCam({ f: +q.get('f') }); if (q.get('pitch')) PS.setCam({ pitch: +q.get('pitch') }); if (q.get('cy')) PS.setCam({ cy: +q.get('cy') });
   // ray direction for stage pixel (sx, sy) — not normalized; dz component is the depth axis before pitch
   PS.ray = (sx, sy) => { const C = PS.CAM, dx = (sx + 0.5 - C.cx) / C.f, dy = -(sy + 0.5 - C.cy) / C.f, dz = 1;
     const x = dx, y = dy * cp + dz * sp, z = -dy * sp + dz * cp; return [x * cyw + z * syw, y, -x * syw + z * cyw]; };   // pitch, then yaw about +y

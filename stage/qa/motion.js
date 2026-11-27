@@ -7,7 +7,7 @@ const glob = require('fs').readdirSync('/opt/pw-browsers').find(d => d.startsWit
   const b = await chromium.launch({ executablePath: `/opt/pw-browsers/${glob}/chrome-linux64/chrome`, args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const p = await b.newPage({ viewport: { width: 1280, height: 900 } });
   const errs = []; p.on('pageerror', e => errs.push(e.message));
-  await p.goto(`http://localhost:8733/index.html?run=0&weather=${wx}&hour=${hour}`); await p.waitForFunction(() => window.__ready, null, { timeout: 120000 });
+  await p.goto(`http://localhost:${process.env.PORT || 8733}/index.html?run=0&weather=${wx}&hour=${hour}`); await p.waitForFunction(() => window.__ready, null, { timeout: 120000 });
   const r = await p.evaluate(([n]) => {
     const S = window.__S; S.beltSpeed = 0; STAGE.world.shoppers.length = 0; if (window.BOMO) { BOMO.draw = () => {}; BOMO.drawsShadow = true; BOMO.tick = () => {}; }
     if (window.SKY && SKY.setWeather) SKY.setWeather(S.weather);

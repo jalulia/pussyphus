@@ -7,7 +7,7 @@ const fs = require('fs'), { execSync } = require('child_process');
   const dir = out + '.frames'; fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir, { recursive: true });
   const b = await chromium.launch({ executablePath: `/opt/pw-browsers/${glob}/chrome-linux64/chrome`, args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const p = await b.newPage({ viewport: { width: 1280, height: 900 } }); const errs = []; p.on('pageerror', e => errs.push(e.message));
-  await p.goto(`http://localhost:8733/index.html?run=0&weather=${wx}&hour=${hr}`); await p.waitForFunction(() => window.__ready, null, { timeout: 120000 });
+  await p.goto(`http://localhost:${process.env.PORT || 8733}/index.html?run=0&weather=${wx}&hour=${hr}`); await p.waitForFunction(() => window.__ready, null, { timeout: 120000 });
   await p.evaluate((w) => window.__step(w, 30), warm);
   const n = Math.round(secs * fps), beh = {};
   for (let i = 0; i < n; i++) { const r = await p.evaluate((f) => { window.__step(1 / f, 30, false); return [document.getElementById('stage').toDataURL(), window.BOMO ? BOMO.state().behavior : '']; }, fps);
