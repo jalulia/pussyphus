@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PUSSYPHUS · Page not found</title>
+  <script>
+    // Older shared links included a trailing space in the prototype folder.
+    try {
+      const path = decodeURIComponent(location.pathname);
+      const legacy = "/pussyphus/Games - Bo Pussyphus/prototypes/pussyphus_prototype /";
+      if (path === legacy || path === legacy + "index.html") {
+        location.replace("/pussyphus/Games%20-%20Bo%20Pussyphus/prototypes/pussyphus_prototype/" + location.search + location.hash);
+      }
+    } catch (_) {
+      // Leave malformed URLs on this page with a working link to the game.
+    }
+  </script>
+</head>
+<body>
+  <h1>Page not found</h1>
+  <p><a href="/pussyphus/">Play PUSSYPHUS</a>, the escalator cat game.</p>
+</body>
+</html>
